@@ -163,18 +163,8 @@ CORS(app)  # Add this line after creating the Flask app
      }'
    ```
 
-## 📊 Admin Interfaces
 
-When running with `--profile dev`:
-
-- **phpMyAdmin**: http://localhost:8080
-  - Server: mysql
-  - Username: levels_user
-  - Password: levels_password
-
-- **Redis Commander**: http://localhost:8081
-
-## 🔧 Configuration
+## Configuration
 
 ### Environment Variables
 
