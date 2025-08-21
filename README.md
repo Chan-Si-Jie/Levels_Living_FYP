@@ -35,6 +35,7 @@
    │   ├── app.py
    │   ├── requirements.txt
    │   └── Dockerfile
+   ├── api_tester.html
    └── test_api.py
    ```
 
@@ -114,7 +115,17 @@ pip install requests
 
 # Run comprehensive API tests
 python test_api.py
+
+# Open directly in browser or
+python -m http.server 8000
+# Then go to http://localhost:8000/api_tester.html
+
+# If the website has an issue, add CORS to both UserMS/app.py and CustomerMS/app.py
+from flask_cors import CORS
+app = Flask(__name__)
+CORS(app)  # Add this line after creating the Flask app
 ```
+
 
 ### Manual Testing with curl
 
