@@ -315,10 +315,6 @@ Each service uses these environment variables (configured in docker-compose.yml)
 | `REDIS_HOST` | redis | Redis host |
 | `JWT_SECRET_KEY` | (auto-generated) | JWT signing key |
 
-If using Root to access the Database:
-|----------|---------|
-| `user` | root |
-| `password` | rootpassword |
 
 ### Service Ports
 - **User Authentication Service**: 5001
@@ -487,4 +483,5 @@ The system is designed for easy integration with:
 - **Console Debugging**: Press F12 in browser for detailed logs
 
 **Last Updated**: August 25th, 2025 11:00pm with API testing interface - Mervin Tan Zhi Yong
+
 
