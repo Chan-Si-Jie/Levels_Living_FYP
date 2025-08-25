@@ -1,6 +1,7 @@
 # UserMS/app.py
 from flask import Flask, request, jsonify
 from flask_jwt_extended import JWTManager, jwt_required, create_access_token, create_refresh_token, get_jwt_identity, get_jwt
+from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 import mysql.connector
 from mysql.connector import Error
@@ -31,7 +32,7 @@ class Config:
     
     # Database Configuration
     DB_HOST = os.environ.get('DB_HOST', 'localhost')
-    DB_NAME = os.environ.get('DB_NAME', 'levels_living_db')
+    DB_NAME = os.environ.get('DB_NAME', 'levels_living_db_new')
     DB_USER = os.environ.get('DB_USER', 'root')
     DB_PASSWORD = os.environ.get('DB_PASSWORD', '')
     DB_PORT = int(os.environ.get('DB_PORT', 3306))
@@ -51,6 +52,9 @@ class Config:
 
 app = Flask(__name__)
 app.config.from_object(Config)
+
+# Enable CORS for all routes
+CORS(app, origins=["http://localhost:8000", "http://127.0.0.1:8000", "null"])
 
 # Initialize JWT
 jwt = JWTManager(app)

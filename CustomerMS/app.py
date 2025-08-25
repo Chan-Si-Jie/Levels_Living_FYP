@@ -1,6 +1,7 @@
-# customer_service/app.py
+# customerMS/app.py
 from flask import Flask, request, jsonify
 from flask_jwt_extended import JWTManager, jwt_required, get_jwt_identity, get_jwt
+from flask_cors import CORS
 import mysql.connector
 from mysql.connector import Error
 import os
@@ -31,7 +32,7 @@ class Config:
     
     # Database Configuration
     DB_HOST = os.environ.get('DB_HOST') or 'localhost'
-    DB_NAME = os.environ.get('DB_NAME') or 'levels_living_db'
+    DB_NAME = os.environ.get('DB_NAME') or 'levels_living_db_new'
     DB_USER = os.environ.get('DB_USER') or 'root'
     DB_PASSWORD = os.environ.get('DB_PASSWORD') or ''
     DB_PORT = int(os.environ.get('DB_PORT', 3306))
@@ -59,6 +60,9 @@ class Config:
 app = Flask(__name__)
 app.config.from_object(Config)
 
+# Enable CORS for all routes
+CORS(app, origins=["http://localhost:8000", "http://127.0.0.1:8000", "null"])
+
 # Initialize JWT
 jwt = JWTManager(app)
 
@@ -82,7 +86,7 @@ except Exception as e:
 class DatabaseManager:
     def __init__(self):
         self.host = os.getenv('DB_HOST', 'localhost')
-        self.database = os.getenv('DB_NAME', 'levels_living_db')
+        self.database = os.getenv('DB_NAME', 'levels_living_db_new')
         self.user = os.getenv('DB_USER', 'root')
         self.password = os.getenv('DB_PASSWORD', '')
         self.port = int(os.getenv('DB_PORT', 3306))

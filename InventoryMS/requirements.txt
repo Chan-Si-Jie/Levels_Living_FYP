@@ -1,4 +1,4 @@
-# customer_service/requirements.txt
+# InventoryMS/requirements.txt
 Flask==2.3.3
 Flask-JWT-Extended==4.5.3
 Flask-CORS==4.0.0
