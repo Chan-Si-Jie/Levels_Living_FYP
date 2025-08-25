@@ -5,8 +5,8 @@
 -- ============================
 
 -- Create main database
-CREATE DATABASE IF NOT EXISTS levels_living_db;
-USE levels_living_db;
+CREATE DATABASE IF NOT EXISTS levels_living_db_new;
+USE levels_living_db_new;
 
 -- ============================
 -- CORE TABLES
@@ -101,7 +101,44 @@ CREATE TABLE orders (
     CONSTRAINT chk_order_value CHECK (order_value >= 0)
 );
 
--- Order Items Table (Inventory Service)
+-- Inventory Table (Inventory Service)
+CREATE TABLE inventory (
+    sku VARCHAR(100) PRIMARY KEY,
+    item_name VARCHAR(200) NOT NULL,
+    variant VARCHAR(100),
+    category VARCHAR(100),
+    subcategory VARCHAR(100),
+    description TEXT,
+    unit_price DECIMAL(10,2),
+    weight_per_unit DECIMAL(8,2),
+    volume_per_unit DECIMAL(8,2),
+    dimensions JSON,
+    delivery_type ENUM(
+        'standard', 'express', 'heavy_item', 'large_item', 
+        'fragile', 'special_handling', 'white_glove', 
+        'assembly_required', 'showroom_pickup'
+    ) DEFAULT 'standard',
+    special_handling_required BOOLEAN DEFAULT FALSE,
+    assembly_required BOOLEAN DEFAULT FALSE,
+    showroom_item BOOLEAN DEFAULT FALSE,
+    handling_instructions TEXT,
+    storage_location VARCHAR(50),
+    supplier VARCHAR(200),
+    supplier_sku VARCHAR(100),
+    image_urls JSON,
+    product_tags JSON,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    INDEX idx_inventory_category (category),
+    INDEX idx_inventory_delivery_type (delivery_type),
+    INDEX idx_inventory_name (item_name),
+    INDEX idx_inventory_variant (variant),
+    INDEX idx_inventory_active (is_active)
+);
+
+-- Order Items Table (Order Management Service)
 CREATE TABLE order_items (
     item_id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
     order_id VARCHAR(36) NOT NULL,
@@ -109,46 +146,18 @@ CREATE TABLE order_items (
     item_name VARCHAR(200) NOT NULL,
     variant VARCHAR(100),
     quantity INT NOT NULL DEFAULT 1,
+    unit_price DECIMAL(10,2),
+    total_price DECIMAL(12,2),
     assembled BOOLEAN DEFAULT FALSE,
-    image_url VARCHAR(500),
-    weight DECIMAL(8,2),
-    volume DECIMAL(8,2),
-    special_handling BOOLEAN DEFAULT FALSE,
     assembly_notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
     FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE CASCADE,
+    FOREIGN KEY (sku) REFERENCES inventory(sku) ON DELETE RESTRICT,
     INDEX idx_order_items_order (order_id),
     INDEX idx_order_items_sku (sku),
     INDEX idx_order_items_assembled (assembled),
     CONSTRAINT chk_quantity CHECK (quantity > 0)
-);
-
--- Inventory Table (Inventory Service)
-CREATE TABLE inventory (
-    sku VARCHAR(100) PRIMARY KEY,
-    item_name VARCHAR(200) NOT NULL,
-    current_stock INT NOT NULL DEFAULT 0,
-    reserved_stock INT NOT NULL DEFAULT 0,
-    reorder_level INT NOT NULL DEFAULT 5,
-    max_stock_level INT DEFAULT 1000,
-    unit_cost DECIMAL(10,2),
-    selling_price DECIMAL(10,2),
-    supplier VARCHAR(200),
-    weight_per_unit DECIMAL(8,2),
-    volume_per_unit DECIMAL(8,2),
-    dimensions JSON,
-    special_handling_required BOOLEAN DEFAULT FALSE,
-    storage_location VARCHAR(50),
-    category VARCHAR(100),
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    
-    INDEX idx_inventory_reorder (current_stock, reorder_level),
-    INDEX idx_inventory_category (category),
-    CONSTRAINT chk_current_stock CHECK (current_stock >= 0),
-    CONSTRAINT chk_reserved_stock CHECK (reserved_stock >= 0)
 );
 
 -- Drivers Table (Delivery Service)
@@ -294,7 +303,7 @@ CREATE TABLE communications (
     INDEX idx_communications_scheduled (scheduled_at)
 );
 
--- Assembly Queue Table (Inventory Service)
+-- Assembly Queue Table (Order Management Service)
 CREATE TABLE assembly_queue (
     queue_id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
     order_id VARCHAR(36) NOT NULL,
@@ -317,7 +326,7 @@ CREATE TABLE assembly_queue (
     INDEX idx_assembly_queue_priority (priority)
 );
 
--- Defects Tracking Table (Inventory Service)
+-- Defects Tracking Table (Order Management Service)
 CREATE TABLE defects (
     defect_id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
     item_id VARCHAR(36) NOT NULL,
@@ -380,10 +389,12 @@ INSERT INTO customers (customer_contact, customer_street, customer_unit, custome
 ('+6587654321', '789 Bukit Timah Road', 'House 1', '259012', 'Landed', 1.3387, 103.7890);
 
 -- Insert sample inventory
-INSERT INTO inventory (sku, item_name, current_stock, reserved_stock, reorder_level, weight_per_unit, volume_per_unit, special_handling_required) VALUES
-('SKU001', 'Office Chair Model A', 50, 5, 10, 12.5, 0.3, FALSE),
-('SKU002', 'Standing Desk 120cm', 25, 2, 5, 45.0, 2.1, TRUE),
-('SKU003', 'Storage Cabinet White', 30, 3, 8, 25.0, 1.5, FALSE);
+INSERT INTO inventory (sku, item_name, variant, category, delivery_type, weight_per_unit, volume_per_unit, special_handling_required, assembly_required, unit_price) VALUES
+('SKU001', 'Office Chair Model A', 'Standard', 'Furniture', 'standard', 12.5, 0.3, FALSE, FALSE, 199.00),
+('SKU002', 'Standing Desk 120cm', 'Electric', 'Furniture', 'heavy_item', 45.0, 2.1, TRUE, TRUE, 899.00),
+('SKU003', 'Storage Cabinet', 'White', 'Furniture', 'assembly_required', 25.0, 1.5, FALSE, TRUE, 299.00),
+('SKU004', 'Glass Coffee Table', 'Premium', 'Furniture', 'fragile', 30.0, 1.2, TRUE, FALSE, 599.00),
+('SKU005', 'Sectional Sofa', 'Large', 'Furniture', 'white_glove', 80.0, 5.0, TRUE, TRUE, 1599.00);
 
 -- Insert sample drivers
 INSERT INTO drivers (driver_id, driver_name, driver_contact, team, license_number, vehicle_type, vehicle_plate, vehicle_capacity_kg, vehicle_capacity_cbm, max_delivery_items, base_hourly_rate) VALUES
@@ -434,20 +445,35 @@ JOIN customers c ON o.customer_id = c.customer_id
 LEFT JOIN drivers dr ON d.driver_id = dr.driver_id
 ORDER BY d.delivery_date, d.delivery_order;
 
--- Inventory alerts view
-CREATE VIEW inventory_alerts AS
+-- Inventory view with delivery requirements
+CREATE VIEW inventory_delivery_requirements AS
 SELECT 
     sku,
     item_name,
-    current_stock,
-    reserved_stock,
-    reorder_level,
-    (current_stock - reserved_stock) as available_stock,
+    variant,
+    category,
+    delivery_type,
+    weight_per_unit,
+    volume_per_unit,
+    special_handling_required,
+    assembly_required,
+    showroom_item,
     CASE 
-        WHEN current_stock <= reorder_level THEN 'REORDER_NEEDED'
-        WHEN (current_stock - reserved_stock) <= 0 THEN 'OUT_OF_STOCK'
-        WHEN (current_stock - reserved_stock) <= reorder_level THEN 'LOW_STOCK'
-        ELSE 'OK'
-    END as stock_status
+        WHEN delivery_type = 'heavy_item' THEN 'Requires heavy lifting equipment'
+        WHEN delivery_type = 'fragile' THEN 'Handle with extra care'
+        WHEN delivery_type = 'white_glove' THEN 'Full service delivery and setup'
+        WHEN assembly_required = TRUE THEN 'Assembly required'
+        WHEN showroom_item = TRUE THEN 'Pickup from showroom required'
+        ELSE 'Standard delivery'
+    END as delivery_notes
 FROM inventory
-WHERE current_stock <= reorder_level OR (current_stock - reserved_stock) <= reorder_level;
+WHERE is_active = TRUE;
+
+-- ============================
+-- USER PERMISSIONS SETUP
+-- ============================
+
+-- Grant proper permissions to levels_user for the database
+-- This ensures the user can access levels_living_db_new after Docker restarts
+GRANT ALL PRIVILEGES ON levels_living_db_new.* TO 'levels_user'@'%';
+FLUSH PRIVILEGES;
