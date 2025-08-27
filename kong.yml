@@ -1,0 +1,27 @@
+_format_version: "3.0"
+_transform: true
+
+services:
+  - name: user-auth-service
+    url: http://user-auth-service:5001
+    routes:
+      - name: user-auth-route
+        paths:
+          - /auth
+        strip_path: false
+
+  - name: customer-service
+    url: http://customer-service:5002
+    routes:
+      - name: customer-route
+        paths:
+          - /customers
+        strip_path: false
+
+  - name: inventory-service
+    url: http://inventory-service:5003
+    routes:
+      - name: inventory-route
+        paths:
+          - /inventory
+        strip_path: false
