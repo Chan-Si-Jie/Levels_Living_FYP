@@ -25,3 +25,23 @@ services:
         paths:
           - /inventory
         strip_path: false
+
+  - name: delivery-service
+    url: http://delivery-service:5004
+    routes:
+      - name: delivery-route
+        paths:
+          - /deliveries
+          - /tracking
+          - /optimize-route
+        strip_path: false
+
+  - name: order-management-service
+    url: http://order-management-service:5005
+    routes:
+      - name: order-route
+        paths:
+          - /orders
+          - /dashboard
+          - /services
+        strip_path: false

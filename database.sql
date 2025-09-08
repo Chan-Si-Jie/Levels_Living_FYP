@@ -69,7 +69,7 @@ CREATE TABLE customers (
     CONSTRAINT chk_contact CHECK (customer_contact REGEXP '^(\\+65)?[689][0-9]{7}$')
 );
 
--- Orders Table (Order Management Service)
+-- Orders Table (Order Management Service) - Simplified for delivery management
 CREATE TABLE orders (
     order_id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
     order_no VARCHAR(50) UNIQUE NOT NULL,
@@ -77,9 +77,8 @@ CREATE TABLE orders (
     platform_order_id VARCHAR(50),
     customer_id VARCHAR(36) NOT NULL,
     status ENUM(
-        'received', 'validated', 'processing', 'in_assembly', 
-        'ready_for_delivery', 'out_for_delivery', 'delivered', 
-        'failed', 'cancelled', 'returned'
+        'received', 'ready_for_delivery', 'assigned_for_delivery', 
+        'out_for_delivery', 'delivered', 'failed', 'cancelled', 'returned'
     ) DEFAULT 'received',
     order_date DATE NOT NULL,
     order_value DECIMAL(12,2) NOT NULL DEFAULT 0.00,
@@ -90,14 +89,19 @@ CREATE TABLE orders (
     special_delivery BOOLEAN DEFAULT FALSE,
     priority INT DEFAULT 1,
     source_system VARCHAR(50) DEFAULT 'shopify',
+    assigned_driver_id VARCHAR(20),
+    delivery_date DATE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     
     FOREIGN KEY (customer_id) REFERENCES customers(customer_id) ON DELETE CASCADE,
+    FOREIGN KEY (assigned_driver_id) REFERENCES drivers(driver_id) ON DELETE SET NULL,
     INDEX idx_orders_customer (customer_id),
     INDEX idx_orders_status (status),
     INDEX idx_orders_date (order_date),
     INDEX idx_orders_no (order_no),
+    INDEX idx_orders_driver (assigned_driver_id),
+    INDEX idx_orders_delivery_date (delivery_date),
     CONSTRAINT chk_order_value CHECK (order_value >= 0)
 );
 
@@ -138,7 +142,7 @@ CREATE TABLE inventory (
     INDEX idx_inventory_active (is_active)
 );
 
--- Order Items Table (Order Management Service)
+-- Order Items Table (Order Management Service) - Simplified for delivery management
 CREATE TABLE order_items (
     item_id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
     order_id VARCHAR(36) NOT NULL,
@@ -148,19 +152,18 @@ CREATE TABLE order_items (
     quantity INT NOT NULL DEFAULT 1,
     unit_price DECIMAL(10,2),
     total_price DECIMAL(12,2),
-    assembled BOOLEAN DEFAULT FALSE,
-    assembly_notes TEXT,
+    ready_for_delivery BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
     FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE CASCADE,
     FOREIGN KEY (sku) REFERENCES inventory(sku) ON DELETE RESTRICT,
     INDEX idx_order_items_order (order_id),
     INDEX idx_order_items_sku (sku),
-    INDEX idx_order_items_assembled (assembled),
+    INDEX idx_order_items_ready (ready_for_delivery),
     CONSTRAINT chk_quantity CHECK (quantity > 0)
 );
 
--- Drivers Table (Delivery Service)
+-- Drivers Table (Delivery Service) - Updated for DeliveryMS compatibility
 CREATE TABLE drivers (
     driver_id VARCHAR(20) PRIMARY KEY,
     driver_name VARCHAR(100) NOT NULL,
@@ -180,6 +183,9 @@ CREATE TABLE drivers (
     weekend_rate DECIMAL(4,2) DEFAULT 2.0,
     performance_rating DECIMAL(3,2) DEFAULT 5.0,
     hire_date DATE,
+    -- DeliveryMS specific fields
+    last_location JSON,
+    vehicle VARCHAR(100),
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -303,48 +309,28 @@ CREATE TABLE communications (
     INDEX idx_communications_scheduled (scheduled_at)
 );
 
--- Assembly Queue Table (Order Management Service)
-CREATE TABLE assembly_queue (
-    queue_id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+-- Delivery Assignments Table (Order Management Service) - For HQ to manage deliveries
+CREATE TABLE delivery_assignments (
+    assignment_id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
     order_id VARCHAR(36) NOT NULL,
-    item_id VARCHAR(36) NOT NULL,
+    driver_id VARCHAR(20),
+    delivery_date DATE NOT NULL,
+    time_slot VARCHAR(50),
     priority INT DEFAULT 1,
-    assigned_to VARCHAR(36),
-    status ENUM('pending', 'in_progress', 'completed', 'defective', 'on_hold') DEFAULT 'pending',
-    estimated_time INT,
-    actual_time INT,
-    started_at TIMESTAMP NULL,
-    completed_at TIMESTAMP NULL,
-    notes TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status ENUM('assigned', 'in_progress', 'completed', 'failed', 'rescheduled') DEFAULT 'assigned',
+    special_instructions TEXT,
+    estimated_duration INT,
+    assigned_by VARCHAR(36),
+    assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     
     FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE CASCADE,
-    FOREIGN KEY (item_id) REFERENCES order_items(item_id) ON DELETE CASCADE,
-    FOREIGN KEY (assigned_to) REFERENCES users(user_id) ON DELETE SET NULL,
-    INDEX idx_assembly_queue_order (order_id),
-    INDEX idx_assembly_queue_status (status),
-    INDEX idx_assembly_queue_priority (priority)
-);
-
--- Defects Tracking Table (Order Management Service)
-CREATE TABLE defects (
-    defect_id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
-    item_id VARCHAR(36) NOT NULL,
-    order_id VARCHAR(36) NOT NULL,
-    defect_type VARCHAR(50) NOT NULL,
-    description TEXT NOT NULL,
-    reported_by VARCHAR(36),
-    severity ENUM('low', 'medium', 'high', 'critical') DEFAULT 'medium',
-    status ENUM('reported', 'investigating', 'resolved', 'replaced') DEFAULT 'reported',
-    reported_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    resolved_at TIMESTAMP NULL,
-    
-    FOREIGN KEY (item_id) REFERENCES order_items(item_id) ON DELETE CASCADE,
-    FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE CASCADE,
-    FOREIGN KEY (reported_by) REFERENCES users(user_id) ON DELETE SET NULL,
-    INDEX idx_defects_item (item_id),
-    INDEX idx_defects_order (order_id),
-    INDEX idx_defects_status (status)
+    FOREIGN KEY (driver_id) REFERENCES drivers(driver_id) ON DELETE SET NULL,
+    FOREIGN KEY (assigned_by) REFERENCES users(user_id) ON DELETE SET NULL,
+    INDEX idx_delivery_assignments_order (order_id),
+    INDEX idx_delivery_assignments_driver (driver_id),
+    INDEX idx_delivery_assignments_date (delivery_date),
+    INDEX idx_delivery_assignments_status (status)
 );
 
 -- System Events Table (Analytics Service)
@@ -396,33 +382,60 @@ INSERT INTO inventory (sku, item_name, variant, category, delivery_type, weight_
 ('SKU004', 'Glass Coffee Table', 'Premium', 'Furniture', 'fragile', 30.0, 1.2, TRUE, FALSE, 599.00),
 ('SKU005', 'Sectional Sofa', 'Large', 'Furniture', 'white_glove', 80.0, 5.0, TRUE, TRUE, 1599.00);
 
--- Insert sample drivers
-INSERT INTO drivers (driver_id, driver_name, driver_contact, team, license_number, vehicle_type, vehicle_plate, vehicle_capacity_kg, vehicle_capacity_cbm, max_delivery_items, base_hourly_rate) VALUES
-('DRV001', 'John Tan', '+6591111111', 'Team A', 'DL123456', 'van', 'SJH1234A', 1000.00, 8.0, 20, 25.00),
-('DRV002', 'Mary Lim', '+6592222222', 'Team B', 'DL789012', 'truck', 'SJH5678B', 2000.00, 15.0, 50, 28.00),
-('DRV003', 'David Wong', '+6593333333', 'Adhoc Team', 'DL345678', 'van', 'SJH9012C', 1000.00, 8.0, 20, 30.00);
+-- Delivery Jobs Table (DeliveryMS specific) - Matches DeliveryMS JOBS structure
+CREATE TABLE delivery_jobs (
+    job_id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    order_id VARCHAR(50) NOT NULL,
+    pickup_location JSON NOT NULL,
+    dropoff_location JSON,
+    stops JSON,
+    driver_id VARCHAR(20),
+    status ENUM('pending', 'planned', 'en_route', 'delivered', 'cancelled', 'failed') DEFAULT 'planned',
+    route_data JSON,
+    distance_meters INT,
+    duration VARCHAR(10),
+    polyline TEXT,
+    optimized_waypoint_index JSON,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (driver_id) REFERENCES drivers(driver_id) ON DELETE SET NULL,
+    INDEX idx_delivery_jobs_order (order_id),
+    INDEX idx_delivery_jobs_driver (driver_id),
+    INDEX idx_delivery_jobs_status (status)
+);
+
+-- Insert sample drivers (updated for DeliveryMS compatibility)
+INSERT INTO drivers (driver_id, driver_name, driver_contact, team, license_number, vehicle_type, vehicle_plate, vehicle_capacity_kg, vehicle_capacity_cbm, max_delivery_items, base_hourly_rate, vehicle) VALUES
+('DRV001', 'John Tan', '+6591111111', 'Team A', 'DL123456', 'van', 'SJH1234A', 1000.00, 8.0, 20, 25.00, 'Van SJH1234A'),
+('DRV002', 'Mary Lim', '+6592222222', 'Team B', 'DL789012', 'truck', 'SJH5678B', 2000.00, 15.0, 50, 28.00, 'Truck SJH5678B'),
+('DRV003', 'David Wong', '+6593333333', 'Adhoc Team', 'DL345678', 'van', 'SJH9012C', 1000.00, 8.0, 20, 30.00, 'Van SJH9012C');
 
 -- ============================
 -- VIEWS FOR COMMON QUERIES
 -- ============================
 
--- Order summary view
+-- Order summary view (updated for delivery management)
 CREATE VIEW order_summary AS
 SELECT 
     o.order_id,
     o.order_no,
     o.status,
     o.order_date,
+    o.delivery_date,
     o.order_value,
     c.customer_contact,
     c.customer_postal_code,
     c.housing_type,
+    dr.driver_name as assigned_driver,
     COUNT(oi.item_id) as total_items,
-    COUNT(CASE WHEN oi.assembled = TRUE THEN 1 END) as assembled_items
+    da.time_slot as delivery_time_slot
 FROM orders o
 JOIN customers c ON o.customer_id = c.customer_id
 LEFT JOIN order_items oi ON o.order_id = oi.order_id
-GROUP BY o.order_id, c.customer_id;
+LEFT JOIN drivers dr ON o.assigned_driver_id = dr.driver_id
+LEFT JOIN delivery_assignments da ON o.order_id = da.order_id
+GROUP BY o.order_id, c.customer_id, dr.driver_id, da.assignment_id;
 
 -- Delivery schedule view
 CREATE VIEW delivery_schedule AS

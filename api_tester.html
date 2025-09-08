@@ -424,6 +424,14 @@
                 <div>📦 InventoryMS</div>
                 <div>Checking...</div>
             </div>
+            <div class="service-status" id="orderStatus">
+                <div>📋 OrderMS</div>
+                <div>Checking...</div>
+            </div>
+            <div class="service-status" id="deliveryStatus">
+                <div>🚚 DeliveryMS</div>
+                <div>Checking...</div>
+            </div>
             
             <!-- User Authentication Status -->
             <div class="auth-status" id="authStatus">
@@ -645,6 +653,151 @@
                 </div>
             </div>
 
+            <!-- OrderMS Panel - Integrated Workflows -->
+            <div class="service-panel">
+                <div class="panel-header">
+                    📋 Order Management Service - HQ Dashboard
+                </div>
+                <div class="panel-content">
+                    <!-- Quick Order Creation (Replaces Customer + Inventory calls) -->
+                    <div class="section">
+                        <h4>🚀 Quick Order Creation</h4>
+                        <p class="description">Create complete orders (replaces separate Customer + Inventory calls)</p>
+                        
+                        <div class="form-group">
+                            <label>Order Number:</label>
+                            <input type="text" id="orderNo" placeholder="ORD001" />
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Customer Contact:</label>
+                            <input type="text" id="orderCustomerContact" placeholder="+6591234567" />
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Delivery Date:</label>
+                            <input type="date" id="orderDeliveryDate" />
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Items (JSON):</label>
+                            <textarea id="orderItems" placeholder='[{"sku": "SKU001", "quantity": 2, "unit_price": 199.00, "item_name": "Office Chair"}]'></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Special Instructions:</label>
+                            <input type="text" id="orderNotes" placeholder="Handle with care" />
+                        </div>
+                        
+                        <button class="btn primary" onclick="createIntegratedOrder()">🎯 Create Order (Auto-validates Customer)</button>
+                    </div>
+
+                    <!-- Order Management -->
+                    <div class="section">
+                        <h4>📋 Order Management</h4>
+                        
+                        <div class="btn-group">
+                            <button class="btn secondary" onclick="getOrderDashboard()">📊 HQ Dashboard</button>
+                            <button class="btn secondary" onclick="getAllOrders()">📋 List All Orders</button>
+                            <button class="btn secondary" onclick="getReadyOrders()">✅ Ready for Delivery</button>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Search Order by ID:</label>
+                            <input type="text" id="searchOrderId" placeholder="Order UUID" />
+                            <button class="btn warning" onclick="searchOrderById()">🔍 Search Order</button>
+                        </div>
+                    </div>
+
+                    <!-- Driver Assignment -->
+                    <div class="section">
+                        <h4>🚚 Driver Assignment</h4>
+                        <p class="description">Assign orders to drivers (auto-creates DeliveryMS jobs)</p>
+                        
+                        <div class="form-group">
+                            <label>Order ID to Assign:</label>
+                            <input type="text" id="assignOrderId" placeholder="Order UUID" />
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Driver ID:</label>
+                            <input type="text" id="assignDriverId" placeholder="DRV001" />
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Delivery Date:</label>
+                            <input type="date" id="assignDeliveryDate" />
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Time Slot:</label>
+                            <input type="text" id="assignTimeSlot" placeholder="9AM-11AM" />
+                        </div>
+                        
+                        <button class="btn success" onclick="assignOrderToDriver()">🎯 Assign Driver (Creates DeliveryMS Job)</button>
+                    </div>
+
+                    <!-- Order Status Updates -->
+                    <div class="section">
+                        <h4>📈 Order Status Management</h4>
+                        
+                        <div class="form-group">
+                            <label>Order ID:</label>
+                            <input type="text" id="statusOrderId" placeholder="Order UUID" />
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>New Status:</label>
+                            <select id="orderStatus">
+                                <option value="received">📥 Received</option>
+                                <option value="ready_for_delivery">✅ Ready for Delivery</option>
+                                <option value="assigned_for_delivery">👤 Assigned for Delivery</option>
+                                <option value="out_for_delivery">🚚 Out for Delivery</option>
+                                <option value="delivered">✅ Delivered</option>
+                                <option value="failed">❌ Failed</option>
+                                <option value="cancelled">🚫 Cancelled</option>
+                            </select>
+                        </div>
+                        
+                        <button class="btn warning" onclick="updateOrderStatus()">📈 Update Status</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DeliveryMS Panel -->
+            <div class="service-panel">
+                <div class="panel-header">
+                    🚚 Delivery Management Service - Route Optimization
+                </div>
+                <div class="panel-content">
+                    <div class="section">
+                        <h4>🗺️ Delivery Tracking</h4>
+                        <p class="description">View delivery jobs created by OrderMS assignments</p>
+                        
+                        <div class="form-group">
+                            <label>Delivery Job ID:</label>
+                            <input type="text" id="deliveryJobId" placeholder="Job UUID" />
+                        </div>
+                        
+                        <div class="btn-group">
+                            <button class="btn secondary" onclick="getDeliveryJob()">📋 Get Delivery Details</button>
+                            <button class="btn secondary" onclick="trackDelivery()">📍 Customer Tracking View</button>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Update Delivery Status:</label>
+                            <select id="deliveryStatus">
+                                <option value="planned">📋 Planned</option>
+                                <option value="en_route">🚗 En Route</option>
+                                <option value="delivered">✅ Delivered</option>
+                                <option value="failed">❌ Failed</option>
+                            </select>
+                            <button class="btn warning" onclick="updateDeliveryStatus()">📈 Update</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Response Panel -->
             <div class="response-panel">
                 <div class="response-header">
@@ -673,7 +826,9 @@ Happy testing! 🧪
         const CONFIG = {
             USER_API: 'http://localhost:5001',
             CUSTOMER_API: 'http://localhost:5002',
-            INVENTORY_API: 'http://localhost:5003'
+            INVENTORY_API: 'http://localhost:5003',
+            ORDER_API: 'http://localhost:5005',
+            DELIVERY_API: 'http://localhost:5004'
         };
 
         // Global state
@@ -856,7 +1011,9 @@ ${'═'.repeat(80)}
             const services = [
                 { id: 'userStatus', name: 'UserMS', url: `${CONFIG.USER_API}/health` },
                 { id: 'customerStatus', name: 'CustomerMS', url: `${CONFIG.CUSTOMER_API}/health` },
-                { id: 'inventoryStatus', name: 'InventoryMS', url: `${CONFIG.INVENTORY_API}/health` }
+                { id: 'inventoryStatus', name: 'InventoryMS', url: `${CONFIG.INVENTORY_API}/health` },
+                { id: 'orderStatus', name: 'OrderMS', url: `${CONFIG.ORDER_API}/health` },
+                { id: 'deliveryStatus', name: 'DeliveryMS', url: `${CONFIG.DELIVERY_API}/health` }
             ];
 
             console.log('🔍 Checking services:', services.map(s => s.name));
@@ -1069,6 +1226,169 @@ ${'═'.repeat(80)}
         // InventoryMS Functions
         async function testInventoryHealth() {
             await makeRequest('GET', `${CONFIG.INVENTORY_API}/health`);
+        }
+
+        // ===============================
+        // OrderMS Functions - Integrated Workflows
+        // ===============================
+
+        async function createIntegratedOrder() {
+            if (!currentToken) {
+                alert('⚠️ Please login first to create orders!');
+                return;
+            }
+
+            try {
+                const items = JSON.parse(document.getElementById('orderItems').value);
+                const data = {
+                    order_no: document.getElementById('orderNo').value,
+                    customer_contact: document.getElementById('orderCustomerContact').value,
+                    delivery_date: document.getElementById('orderDeliveryDate').value,
+                    items: items,
+                    note: document.getElementById('orderNotes').value,
+                    special_delivery: false
+                };
+
+                console.log('🎯 Creating integrated order (validates customer automatically):', data);
+                await makeRequest('POST', `${CONFIG.ORDER_API}/orders`, data, true);
+            } catch (error) {
+                alert('❌ Invalid JSON in items field: ' + error.message);
+            }
+        }
+
+        async function getOrderDashboard() {
+            if (!currentToken) {
+                alert('⚠️ Please login first!');
+                return;
+            }
+            console.log('📊 Getting HQ dashboard overview...');
+            await makeRequest('GET', `${CONFIG.ORDER_API}/dashboard`, null, true);
+        }
+
+        async function getAllOrders() {
+            if (!currentToken) {
+                alert('⚠️ Please login first!');
+                return;
+            }
+            console.log('📋 Getting all orders...');
+            await makeRequest('GET', `${CONFIG.ORDER_API}/orders`, null, true);
+        }
+
+        async function getReadyOrders() {
+            if (!currentToken) {
+                alert('⚠️ Please login first!');
+                return;
+            }
+            console.log('✅ Getting orders ready for delivery...');
+            await makeRequest('GET', `${CONFIG.ORDER_API}/orders?status=ready_for_delivery`, null, true);
+        }
+
+        async function searchOrderById() {
+            if (!currentToken) {
+                alert('⚠️ Please login first!');
+                return;
+            }
+            
+            const orderId = document.getElementById('searchOrderId').value;
+            if (!orderId) {
+                alert('⚠️ Please enter an Order ID!');
+                return;
+            }
+            
+            console.log('🔍 Searching for order:', orderId);
+            await makeRequest('GET', `${CONFIG.ORDER_API}/orders/${orderId}`, null, true);
+        }
+
+        async function assignOrderToDriver() {
+            if (!currentToken) {
+                alert('⚠️ Please login first!');
+                return;
+            }
+
+            const orderId = document.getElementById('assignOrderId').value;
+            const driverId = document.getElementById('assignDriverId').value;
+            const deliveryDate = document.getElementById('assignDeliveryDate').value;
+
+            if (!orderId || !driverId || !deliveryDate) {
+                alert('⚠️ Please fill in Order ID, Driver ID, and Delivery Date!');
+                return;
+            }
+
+            const data = {
+                driver_id: driverId,
+                delivery_date: deliveryDate,
+                time_slot: document.getElementById('assignTimeSlot').value,
+                special_instructions: "Assigned via HQ Dashboard"
+            };
+
+            console.log('🎯 Assigning order to driver (will auto-create DeliveryMS job):', { orderId, ...data });
+            await makeRequest('PATCH', `${CONFIG.ORDER_API}/orders/${orderId}/assign`, data, true);
+        }
+
+        async function updateOrderStatus() {
+            if (!currentToken) {
+                alert('⚠️ Please login first!');
+                return;
+            }
+
+            const orderId = document.getElementById('statusOrderId').value;
+            const status = document.getElementById('orderStatus').value;
+
+            if (!orderId || !status) {
+                alert('⚠️ Please enter Order ID and select status!');
+                return;
+            }
+
+            const data = { status: status };
+
+            console.log('📈 Updating order status:', { orderId, status });
+            await makeRequest('PATCH', `${CONFIG.ORDER_API}/orders/${orderId}/status`, data, true);
+        }
+
+        // ===============================
+        // DeliveryMS Functions - Route Tracking
+        // ===============================
+
+        async function getDeliveryJob() {
+            if (!currentToken) {
+                alert('⚠️ Please login first!');
+                return;
+            }
+
+            const jobId = document.getElementById('deliveryJobId').value;
+            if (!jobId) {
+                alert('⚠️ Please enter a Delivery Job ID!');
+                return;
+            }
+
+            console.log('📋 Getting delivery job details:', jobId);
+            await makeRequest('GET', `${CONFIG.DELIVERY_API}/deliveries/${jobId}`, null, false);
+        }
+
+        async function trackDelivery() {
+            const jobId = document.getElementById('deliveryJobId').value;
+            if (!jobId) {
+                alert('⚠️ Please enter a Delivery Job ID!');
+                return;
+            }
+
+            console.log('📍 Getting customer tracking view:', jobId);
+            await makeRequest('GET', `${CONFIG.DELIVERY_API}/tracking/${jobId}`, null, false);
+        }
+
+        async function updateDeliveryStatus() {
+            const jobId = document.getElementById('deliveryJobId').value;
+            const status = document.getElementById('deliveryStatus').value;
+
+            if (!jobId || !status) {
+                alert('⚠️ Please enter Job ID and select status!');
+                return;
+            }
+
+            const data = { status: status };
+
+            console.log('📈 Updating delivery status:', { jobId, status });
+            await makeRequest('PATCH', `${CONFIG.DELIVERY_API}/deliveries/${jobId}/status`, data, false);
         }
 
         async function createProduct() {

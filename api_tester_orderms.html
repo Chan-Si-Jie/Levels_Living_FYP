@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OrderMS API Testing Dashboard</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --danger-color: #e74c3c;
+            --light-bg: #ecf0f1;
+            --dark-bg: #34495e;
+            --text-color: #2c3e50;
+            --border-color: #bdc3c7;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: var(--text-color);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-around;
+            background: white;
+            padding: 1rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .service-status {
+            text-align: center;
+            padding: 0.5rem;
+        }
+
+        .service-status.online {
+            color: var(--success-color);
+        }
+
+        .service-status.offline {
+            color: var(--danger-color);
+        }
+
+        .auth-status {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.5rem 1rem;
+            background: var(--light-bg);
+            border-radius: 8px;
+            border: 2px solid var(--border-color);
+            min-width: 300px;
+        }
+
+        .auth-status.authenticated {
+            border-color: var(--success-color);
+            background: linear-gradient(135deg, #f8fff9 0%, #e8f5e8 100%);
+        }
+
+        .auth-info {
+            flex: 1;
+        }
+
+        .auth-label {
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-bottom: 0.2rem;
+        }
+
+        .auth-details {
+            font-size: 0.8rem;
+            opacity: 0.8;
+        }
+
+        .auth-details.authenticated {
+            color: var(--success-color);
+            font-weight: 600;
+            opacity: 1;
+        }
+
+        .auth-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn-sm {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.8rem;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .service-panel {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .service-panel:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+        }
+
+        .panel-header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            padding: 1.5rem;
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+
+        .panel-content {
+            padding: 1.5rem;
+        }
+
+        .endpoint-section {
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: var(--light-bg);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+
+        .endpoint-section h3 {
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+            border-bottom: 2px solid var(--secondary-color);
+            padding-bottom: 0.5rem;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .form-group {
+            flex: 1;
+            margin-bottom: 1rem;
+        }
+
+        .form-group.full-width {
+            flex: 100%;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--text-color);
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 0.8rem;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--secondary-color) 0%, var(--primary-color) 100%);
+            color: white;
+            border: none;
+            padding: 0.8rem 2rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            margin: 0.5rem;
+        }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn.loading {
+            background: var(--warning-color);
+            cursor: wait;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--success-color) 0%, #219a52 100%);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger-color) 0%, #c0392b 100%);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, var(--warning-color) 0%, #d68910 100%);
+        }
+
+        .response-section {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            background: var(--dark-bg);
+            border-radius: 12px;
+            color: white;
+            font-family: 'Consolas', 'Monaco', monospace;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .response-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .status-code {
+            font-weight: bold;
+            padding: 0.3rem 0.8rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        .status-200 { background: var(--success-color); }
+        .status-201 { background: var(--success-color); }
+        .status-400 { background: var(--danger-color); }
+        .status-401 { background: var(--warning-color); }
+        .status-404 { background: var(--danger-color); }
+        .status-500 { background: var(--danger-color); }
+
+        .response-body {
+            white-space: pre-wrap;
+            line-height: 1.4;
+            font-size: 0.9rem;
+        }
+
+        .gateway-info {
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+            color: white;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            background: var(--secondary-color);
+            color: white;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            margin-left: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🚀 OrderMS Gateway API Testing</h1>
+            <p>Single Entry Point for Levels Living Delivery Management System</p>
+        </div>
+
+        <!-- Gateway Information -->
+        <div class="gateway-info">
+            🏗️ All requests go through OrderMS (Port 5005) as the central gateway 
+            <span class="badge">Simplified Architecture</span>
+        </div>
+
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <div class="auth-status" id="authStatus">
+                <div class="auth-info">
+                    <div class="auth-label">Authentication Status</div>
+                    <div class="auth-details" id="authDetails">Not logged in</div>
+                </div>
+                <div class="auth-actions" id="authActions" style="display: none;">
+                    <button class="btn btn-sm btn-danger" onclick="logout()">Logout</button>
+                </div>
+            </div>
+            
+            <div class="service-status" id="ordermsStatus">
+                <strong>OrderMS Gateway</strong>
+                <div>🟡 Checking...</div>
+            </div>
+            
+            <div class="service-status" id="servicesStatus">
+                <strong>Backend Services</strong>
+                <div>🟡 Checking...</div>
+            </div>
+        </div>
+
+        <!-- Main Grid -->
+        <div class="main-grid">
+            <!-- Authentication Panel -->
+            <div class="service-panel">
+                <div class="panel-header">🔐 User Authentication</div>
+                <div class="panel-content">
+                    <div class="endpoint-section">
+                        <h3>Login (Uses UserMS via OrderMS)</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="loginEmail">Email:</label>
+                                <input type="email" id="loginEmail" value="admin@levelsliving.com">
+                            </div>
+                            <div class="form-group">
+                                <label for="loginPassword">Password:</label>
+                                <input type="password" id="loginPassword" value="admin123">
+                            </div>
+                        </div>
+                        <button class="btn" onclick="loginUser()">Login via OrderMS</button>
+                        <button class="btn btn-warning" onclick="testHealth()">Test Health</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Customer Management Panel -->
+            <div class="service-panel">
+                <div class="panel-header">👥 Customer Management</div>
+                <div class="panel-content">
+                    <div class="endpoint-section">
+                        <h3>Create Customer</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="customerContact">Contact Number:</label>
+                                <input type="text" id="customerContact" value="+6591234567">
+                            </div>
+                            <div class="form-group">
+                                <label for="customerPostal">Postal Code:</label>
+                                <input type="text" id="customerPostal" value="123456">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="customerStreet">Street Address:</label>
+                                <input type="text" id="customerStreet" value="123 Main Street">
+                            </div>
+                            <div class="form-group">
+                                <label for="customerUnit">Unit:</label>
+                                <input type="text" id="customerUnit" value="#12-34">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="customerHousing">Housing Type:</label>
+                                <select id="customerHousing">
+                                    <option value="HDB">HDB</option>
+                                    <option value="Condo">Condo</option>
+                                    <option value="Landed">Landed</option>
+                                    <option value="Commercial">Commercial</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button class="btn" onclick="createCustomer()">Create Customer</button>
+                        <button class="btn btn-success" onclick="getCustomers()">Get All Customers</button>
+                    </div>
+
+                    <div class="endpoint-section">
+                        <h3>Find Customer</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="findContact">Contact Number:</label>
+                                <input type="text" id="findContact" value="+6591234567">
+                            </div>
+                            <div class="form-group">
+                                <label for="findCustomerId">Customer ID:</label>
+                                <input type="text" id="findCustomerId" value="">
+                            </div>
+                        </div>
+                        <button class="btn" onclick="getCustomerByContact()">Find by Contact</button>
+                        <button class="btn" onclick="getCustomerById()">Find by ID</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Inventory Management Panel -->
+            <div class="service-panel">
+                <div class="panel-header">📦 Inventory Management</div>
+                <div class="panel-content">
+                    <div class="endpoint-section">
+                        <h3>Create Product</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="productSku">SKU:</label>
+                                <input type="text" id="productSku" value="PROD001">
+                            </div>
+                            <div class="form-group">
+                                <label for="productName">Item Name:</label>
+                                <input type="text" id="productName" value="Test Product">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="productPrice">Unit Price:</label>
+                                <input type="number" id="productPrice" value="199.99" step="0.01">
+                            </div>
+                            <div class="form-group">
+                                <label for="productDeliveryType">Delivery Type:</label>
+                                <select id="productDeliveryType">
+                                    <option value="standard">Standard</option>
+                                    <option value="express">Express</option>
+                                    <option value="heavy_item">Heavy Item</option>
+                                    <option value="large_item">Large Item</option>
+                                    <option value="fragile">Fragile</option>
+                                    <option value="white_glove">White Glove</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button class="btn" onclick="createProduct()">Create Product</button>
+                        <button class="btn btn-success" onclick="getProducts()">Get All Products</button>
+                    </div>
+
+                    <div class="endpoint-section">
+                        <h3>Product Operations</h3>
+                        <div class="form-group">
+                            <label for="searchSku">Search SKU:</label>
+                            <input type="text" id="searchSku" value="PROD001">
+                        </div>
+                        <button class="btn" onclick="getProductBySku()">Get Product by SKU</button>
+                        <button class="btn btn-warning" onclick="getDeliveryTypes()">Get Delivery Types</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Order Management Panel -->
+            <div class="service-panel">
+                <div class="panel-header">📋 Order Management</div>
+                <div class="panel-content">
+                    <div class="endpoint-section">
+                        <h3>Create Order</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="orderNo">Order Number:</label>
+                                <input type="text" id="orderNo" value="ORD001">
+                            </div>
+                            <div class="form-group">
+                                <label for="orderContact">Customer Contact:</label>
+                                <input type="text" id="orderContact" value="+6591234567">
+                            </div>
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="orderItems">Order Items (JSON):</label>
+                            <textarea id="orderItems" rows="4">[{"sku": "PROD001", "quantity": 2, "unit_price": 199.99}]</textarea>
+                        </div>
+                        <button class="btn" onclick="createOrder()">Create Order</button>
+                        <button class="btn btn-success" onclick="getOrders()">Get All Orders</button>
+                    </div>
+
+                    <div class="endpoint-section">
+                        <h3>Order Operations</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="orderIdSearch">Order ID:</label>
+                                <input type="text" id="orderIdSearch" value="">
+                            </div>
+                            <div class="form-group">
+                                <label for="driverId">Driver ID:</label>
+                                <input type="text" id="driverId" value="DRV001">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="deliveryDate">Delivery Date:</label>
+                                <input type="date" id="deliveryDate" value="">
+                            </div>
+                            <div class="form-group">
+                                <label for="orderStatus">Order Status:</label>
+                                <select id="orderStatus">
+                                    <option value="received">Received</option>
+                                    <option value="ready_for_delivery">Ready for Delivery</option>
+                                    <option value="assigned_for_delivery">Assigned for Delivery</option>
+                                    <option value="out_for_delivery">Out for Delivery</option>
+                                    <option value="delivered">Delivered</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button class="btn" onclick="getOrderById()">Get Order</button>
+                        <button class="btn btn-warning" onclick="assignOrder()">Assign Order</button>
+                        <button class="btn btn-danger" onclick="updateOrderStatus()">Update Status</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delivery Management Panel -->
+            <div class="service-panel">
+                <div class="panel-header">🚚 Delivery Management</div>
+                <div class="panel-content">
+                    <div class="endpoint-section">
+                        <h3>Delivery Operations</h3>
+                        <div class="form-group">
+                            <label for="jobId">Delivery Job ID:</label>
+                            <input type="text" id="jobId" value="">
+                        </div>
+                        <button class="btn" onclick="getDeliveryJob()">Get Delivery Job</button>
+                        <button class="btn btn-success" onclick="getTrackingInfo()">Get Tracking Info</button>
+                    </div>
+
+                    <div class="endpoint-section">
+                        <h3>Service Health</h3>
+                        <button class="btn btn-warning" onclick="getAllServicesHealth()">Check All Services</button>
+                        <button class="btn" onclick="getDashboard()">Get HQ Dashboard</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Response Display -->
+        <div class="response-section" id="responseSection" style="display: none;">
+            <div class="response-header">
+                <span id="responseTitle">API Response</span>
+                <span class="status-code" id="statusCode">200</span>
+            </div>
+            <div class="response-body" id="responseBody"></div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration - Single gateway endpoint
+        const CONFIG = {
+            GATEWAY_API: 'http://localhost:5005'  // OrderMS as single entry point
+        };
+
+        // Global state
+        let currentToken = null;
+        let currentUser = null;
+        let refreshToken = null;
+        let sessionId = null;
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 OrderMS Gateway API Tester initialized');
+            console.log('🏗️ Gateway URL:', CONFIG.GATEWAY_API);
+            
+            // Set today's date
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('deliveryDate').value = today;
+            
+            checkServiceHealth();
+            updateSessionDisplay();
+        });
+
+        function updateSessionDisplay() {
+            const authStatus = document.getElementById('authStatus');
+            const authDetails = document.getElementById('authDetails');
+            const authActions = document.getElementById('authActions');
+            
+            if (currentToken && currentUser) {
+                authStatus.classList.add('authenticated');
+                authDetails.classList.add('authenticated');
+                
+                const loginTime = new Date().toLocaleTimeString();
+                authDetails.innerHTML = `
+                    <strong>${currentUser.email}</strong><br>
+                    <small>Role: ${currentUser.role} | Login: ${loginTime}</small>
+                `;
+                
+                authActions.style.display = 'flex';
+            } else {
+                authStatus.classList.remove('authenticated');
+                authDetails.classList.remove('authenticated');
+                authDetails.textContent = 'Not logged in';
+                authActions.style.display = 'none';
+            }
+        }
+
+        function getAuthHeaders() {
+            return currentToken ? { 'Authorization': `Bearer ${currentToken}` } : {};
+        }
+
+        function setButtonLoading(button, loading) {
+            if (loading) {
+                button.disabled = true;
+                button.classList.add('loading');
+            } else {
+                button.disabled = false;
+                button.classList.remove('loading');
+            }
+        }
+
+        // API Request Handler
+        async function makeRequest(method, endpoint, data = null, requiresAuth = false, button = null) {
+            console.group(`🌐 Gateway Request: ${method} ${endpoint}`);
+            console.log('📤 Request Details:', { method, endpoint, data, requiresAuth });
+
+            if (button) setButtonLoading(button, true);
+
+            try {
+                const url = `${CONFIG.GATEWAY_API}${endpoint}`;
+                const headers = {
+                    'Content-Type': 'application/json',
+                    ...(requiresAuth ? getAuthHeaders() : {})
+                };
+
+                const config = { method, headers };
+                if (data) config.body = JSON.stringify(data);
+
+                console.log('⚙️ Full URL:', url);
+                console.time(`⏱️ Request Duration`);
+
+                const response = await fetch(url, config);
+                console.timeEnd(`⏱️ Request Duration`);
+
+                const responseData = await response.json();
+                
+                displayResponse(method, endpoint, response.status, responseData);
+                console.groupEnd();
+                return { response, data: responseData };
+            } catch (error) {
+                console.error('❌ Request Error:', error);
+                displayResponse(method, endpoint, 0, { error: 'Network Error' }, error.message);
+                console.groupEnd();
+                return { response: null, data: null, error };
+            } finally {
+                if (button) setButtonLoading(button, false);
+            }
+        }
+
+        function displayResponse(method, endpoint, status, data, error = null) {
+            const responseSection = document.getElementById('responseSection');
+            const responseTitle = document.getElementById('responseTitle');
+            const statusCode = document.getElementById('statusCode');
+            const responseBody = document.getElementById('responseBody');
+
+            responseSection.style.display = 'block';
+            responseTitle.textContent = `${method} ${endpoint}`;
+            statusCode.textContent = status || 'ERROR';
+            statusCode.className = `status-code status-${status}`;
+
+            if (error) {
+                responseBody.textContent = `ERROR: ${error}`;
+            } else {
+                responseBody.textContent = JSON.stringify(data, null, 2);
+            }
+        }
+
+        // Service Health Check
+        async function checkServiceHealth() {
+            console.group('💗 Service Health Check');
+            
+            const ordermsStatusEl = document.getElementById('ordermsStatus');
+            const servicesStatusEl = document.getElementById('servicesStatus');
+
+            try {
+                // Check OrderMS Gateway
+                const response = await fetch(`${CONFIG.GATEWAY_API}/health`);
+                if (response.ok) {
+                    ordermsStatusEl.className = 'service-status online';
+                    ordermsStatusEl.children[1].textContent = '🟢 Online';
+                } else {
+                    throw new Error('Gateway offline');
+                }
+
+                // Check all backend services via OrderMS
+                const servicesResponse = await fetch(`${CONFIG.GATEWAY_API}/services/health`);
+                if (servicesResponse.ok) {
+                    const servicesData = await servicesResponse.json();
+                    const allOnline = Object.values(servicesData.data).every(s => s.status === 'online');
+                    
+                    servicesStatusEl.className = allOnline ? 'service-status online' : 'service-status offline';
+                    servicesStatusEl.children[1].textContent = allOnline ? '🟢 All Online' : '🟡 Some Offline';
+                } else {
+                    servicesStatusEl.className = 'service-status offline';
+                    servicesStatusEl.children[1].textContent = '🔴 Health Check Failed';
+                }
+            } catch (error) {
+                console.error('❌ Health check failed:', error);
+                ordermsStatusEl.className = 'service-status offline';
+                ordermsStatusEl.children[1].textContent = '🔴 Offline';
+                servicesStatusEl.className = 'service-status offline';
+                servicesStatusEl.children[1].textContent = '🔴 Unknown';
+            }
+            
+            console.groupEnd();
+        }
+
+        // ==========================================
+        // API FUNCTIONS (All via OrderMS Gateway)
+        // ==========================================
+
+        async function testHealth() {
+            await makeRequest('GET', '/health');
+        }
+
+        // Authentication (still direct to UserMS for login)
+        async function loginUser() {
+            const data = {
+                email: document.getElementById('loginEmail').value,
+                password: document.getElementById('loginPassword').value
+            };
+            
+            // Login still needs to go direct to UserMS since OrderMS doesn't proxy auth
+            const result = await fetch('http://localhost:5001/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            if (result.status === 200) {
+                const responseData = await result.json();
+                currentToken = responseData.access_token;
+                currentUser = responseData.user;
+                updateSessionDisplay();
+                displayResponse('POST', '/auth/login', 200, responseData);
+            } else {
+                const errorData = await result.json();
+                displayResponse('POST', '/auth/login', result.status, errorData);
+            }
+        }
+
+        async function logout() {
+            currentToken = null;
+            currentUser = null;
+            updateSessionDisplay();
+            displayResponse('POST', '/auth/logout', 200, { message: 'Logged out locally' });
+        }
+
+        // Customer Management (via OrderMS)
+        async function createCustomer() {
+            const data = {
+                customer_contact: document.getElementById('customerContact').value,
+                customer_street: document.getElementById('customerStreet').value,
+                customer_unit: document.getElementById('customerUnit').value,
+                customer_postal_code: document.getElementById('customerPostal').value,
+                housing_type: document.getElementById('customerHousing').value
+            };
+            
+            await makeRequest('POST', '/customers', data, true);
+        }
+
+        async function getCustomers() {
+            await makeRequest('GET', '/customers', null, true);
+        }
+
+        async function getCustomerByContact() {
+            const contact = document.getElementById('findContact').value;
+            await makeRequest('GET', `/customers/contact/${encodeURIComponent(contact)}`, null, true);
+        }
+
+        async function getCustomerById() {
+            const customerId = document.getElementById('findCustomerId').value;
+            if (!customerId) {
+                alert('Please enter a Customer ID');
+                return;
+            }
+            await makeRequest('GET', `/customers/${customerId}`, null, true);
+        }
+
+        // Inventory Management (via OrderMS)
+        async function createProduct() {
+            const data = {
+                sku: document.getElementById('productSku').value,
+                item_name: document.getElementById('productName').value,
+                unit_price: parseFloat(document.getElementById('productPrice').value),
+                delivery_type: document.getElementById('productDeliveryType').value,
+                category: 'Test Category',
+                weight_per_unit: 1.0,
+                volume_per_unit: 0.1
+            };
+            
+            await makeRequest('POST', '/inventory/products', data, true);
+        }
+
+        async function getProducts() {
+            await makeRequest('GET', '/inventory/products', null, true);
+        }
+
+        async function getProductBySku() {
+            const sku = document.getElementById('searchSku').value;
+            await makeRequest('GET', `/inventory/products/${sku}`, null, true);
+        }
+
+        async function getDeliveryTypes() {
+            await makeRequest('GET', '/inventory/delivery-types', null, true);
+        }
+
+        // Order Management (OrderMS core functions)
+        async function createOrder() {
+            try {
+                const itemsText = document.getElementById('orderItems').value;
+                const items = JSON.parse(itemsText);
+                
+                const data = {
+                    order_no: document.getElementById('orderNo').value,
+                    customer_contact: document.getElementById('orderContact').value,
+                    items: items,
+                    special_delivery: false,
+                    note: 'Test order created via API tester'
+                };
+                
+                await makeRequest('POST', '/orders', data, true);
+            } catch (error) {
+                alert('Invalid JSON in order items: ' + error.message);
+            }
+        }
+
+        async function getOrders() {
+            await makeRequest('GET', '/orders', null, true);
+        }
+
+        async function getOrderById() {
+            const orderId = document.getElementById('orderIdSearch').value;
+            if (!orderId) {
+                alert('Please enter an Order ID');
+                return;
+            }
+            await makeRequest('GET', `/orders/${orderId}`, null, true);
+        }
+
+        async function assignOrder() {
+            const orderId = document.getElementById('orderIdSearch').value;
+            const driverId = document.getElementById('driverId').value;
+            const deliveryDate = document.getElementById('deliveryDate').value;
+            
+            if (!orderId || !driverId || !deliveryDate) {
+                alert('Please enter Order ID, Driver ID, and Delivery Date');
+                return;
+            }
+            
+            const data = {
+                driver_id: driverId,
+                delivery_date: deliveryDate,
+                time_slot: '09:00-17:00',
+                special_instructions: 'Handle with care'
+            };
+            
+            await makeRequest('PATCH', `/orders/${orderId}/assign`, data, true);
+        }
+
+        async function updateOrderStatus() {
+            const orderId = document.getElementById('orderIdSearch').value;
+            const status = document.getElementById('orderStatus').value;
+            
+            if (!orderId) {
+                alert('Please enter an Order ID');
+                return;
+            }
+            
+            const data = { status: status };
+            await makeRequest('PATCH', `/orders/${orderId}/status`, data, true);
+        }
+
+        // Delivery Management (via OrderMS)
+        async function getDeliveryJob() {
+            const jobId = document.getElementById('jobId').value;
+            if (!jobId) {
+                alert('Please enter a Delivery Job ID');
+                return;
+            }
+            await makeRequest('GET', `/deliveries/${jobId}`, null, true);
+        }
+
+        async function getTrackingInfo() {
+            const jobId = document.getElementById('jobId').value;
+            if (!jobId) {
+                alert('Please enter a Delivery Job ID');
+                return;
+            }
+            await makeRequest('GET', `/tracking/${jobId}`, null, false);
+        }
+
+        async function getAllServicesHealth() {
+            await makeRequest('GET', '/services/health');
+        }
+
+        async function getDashboard() {
+            await makeRequest('GET', '/dashboard', null, true);
+        }
+
+        // Auto-refresh health status every 30 seconds
+        setInterval(checkServiceHealth, 30000);
+    </script>
+</body>
+</html>
