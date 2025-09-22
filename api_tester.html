@@ -613,6 +613,39 @@
                             <label>Description:</label>
                             <textarea id="prodDescription" placeholder="Product description">Ergonomic office chair for testing purposes</textarea>
                         </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Width (cm):</label>
+                                <input type="number" id="prodWidth" value="52" step="0.1" placeholder="Width in cm">
+                            </div>
+                            <div class="form-group">
+                                <label>Depth (cm):</label>
+                                <input type="number" id="prodDepth" value="35" step="0.1" placeholder="Depth in cm">
+                            </div>
+                            <div class="form-group">
+                                <label>Height (cm):</label>
+                                <input type="number" id="prodHeight" value="55" step="0.1" placeholder="Height in cm">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>
+                                    <input type="checkbox" id="prodLegInfoCheck" onchange="
+                                        document.getElementById('prodLegHeight').disabled = !this.checked;
+                                        document.getElementById('prodAdditionalInfo').disabled = !this.checked;
+                                    ">
+                                    More Info?
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label>Leg Height (cm):</label>
+                                <input type="number" id="prodLegHeight" value="15" step="0.1" placeholder="Leg height (optional)" disabled>
+                            </div>
+                            <div class="form-group">
+                                <label>Additional Info:</label>
+                                <input type="text" id="prodAdditionalInfo" value="with legs included" placeholder="e.g., with legs included" disabled>
+                            </div>
+                        </div>
                         <button class="btn success" onclick="createProduct()">Create Product</button>
                         <button class="btn" onclick="testInventoryHealth()">Check Health</button>
                     </div>
@@ -1077,6 +1110,32 @@ ${'═'.repeat(80)}
                 return;
             }
 
+            // Get dimension values from form
+            const width = parseFloat(document.getElementById('prodWidth').value) || 0;
+            const depth = parseFloat(document.getElementById('prodDepth').value) || 0;
+            const height = parseFloat(document.getElementById('prodHeight').value) || 0;
+            const legHeight = parseFloat(document.getElementById('prodLegHeight').value) || 0;
+            const additionalInfo = document.getElementById('prodAdditionalInfo').value.trim();
+
+            // Build dimension object matching sponsor's format
+            const dimensions = {
+                width: width,
+                depth: depth,
+                height: height,
+                unit: "cm",
+                raw_description: `W${width} x D${depth} x H${height}cm${additionalInfo ? ` ${additionalInfo}` : ''}${legHeight > 0 ? ` (Legs H${legHeight}cm)` : ''}`
+            };
+
+            // Add leg height if provided
+            if (legHeight > 0) {
+                dimensions.leg_height = legHeight;
+            }
+
+            // Add additional info if provided
+            if (additionalInfo) {
+                dimensions.additional_info = additionalInfo;
+            }
+
             const data = {
                 sku: document.getElementById('prodSKU').value,
                 item_name: document.getElementById('prodName').value,
@@ -1089,11 +1148,7 @@ ${'═'.repeat(80)}
                 special_handling_required: document.getElementById('prodDeliveryType').value !== 'standard',
                 assembly_required: false,
                 showroom_item: false,
-                dimensions: {
-                    length: 60,
-                    width: 60,
-                    height: 110
-                }
+                dimensions: dimensions
             };
             
             await makeRequest('POST', `${CONFIG.INVENTORY_API}/inventory/products`, data, true);
