@@ -9,7 +9,7 @@ const Dashboard = () => {
   useEffect(() => {
     // Replace with your backend API endpoint
     axios
-      .get("http://localhost:5000/api/deliveries")
+      .get("http://localhost:5000/api/deliveries") //// replace with your service URL
       .then((response) => {
         setDeliveries(response.data);
         setLoading(false);
