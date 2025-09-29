@@ -36,14 +36,21 @@ def _get(d, *path):
     return cur
 
 def get_warehouse_waypoint():
-    """Get warehouse location from environment variables"""
     lat = os.getenv("WAREHOUSE_LAT")
-    lng = os.getenv("WAREHOUSE_LNG")
-    if lat and lng:
-        return {"location": {"latLng": {"latitude": float(lat), "longitude": float(lng)}}}
+    long = os.getenv("WAREHOUSE_LONG")
+    if lat and long:
+        return {"location": {"latLng": {"latitude": float(lat), "longitude": float(long)}}}
 
-    # Default to Tampines warehouse if not configured
-    return {"location": {"latLng": {"latitude": 1.375645, "longitude": 103.929573}}}
+    place_id = os.getenv("WAREHOUSE_PLACE_ID")
+    if place_id:
+        return {"placeId": place_id}
+
+    addr = os.getenv("WAREHOUSE_ADDRESS")
+    if addr:
+        return {"location": {"address": addr}}
+
+    raise RuntimeError("Warehouse not configured: set WAREHOUSE_LAT/LNG or WAREHOUSE_PLACE_ID or WAREHOUSE_ADDRESS in .env")
+
 
 def normalize_waypoint(w):
     """
@@ -96,9 +103,26 @@ def compute_route(origin, destination, stops):
         raise RuntimeError("No route returned from Google.")
     return data["routes"][0]
 
+
+
+def geocode_address(address_or_postal: str):
+    """Return {'lat': float, 'lng': float, 'formatted_address': str, 'place_id': str}."""
+    api_key = os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        raise RuntimeError("GOOGLE_API_KEY not set in environment (needed for Geocoding).")
+    r = requests.get(GEOCODE_URL, params={"address": address_or_postal, "key": api_key}, timeout=10)
+    r.raise_for_status()
+    data = r.json()
+    if data.get("status") != "OK" or not data.get("results"):
+        msg = data.get("error_message") or data.get("status") or "geocode failed"
+        raise RuntimeError(f"Geocode failed for '{address_or_postal}': {msg}")
+    res = data["results"][0]
+    loc = res["geometry"]["location"]
+    return {"lat": float(loc["lat"]), "lng": float(loc["lng"]),
+            "formatted_address": res.get("formatted_address"), "place_id": res.get("place_id")}
+
 def to_latlng(value):
     """
-    Convert various input formats to lat/lng coordinates.
     Accepts:
       - {"lat": 1.23, "lng": 4.56}
       - "10 Bayfront Ave, Singapore 018956"
@@ -107,17 +131,16 @@ def to_latlng(value):
     """
     if isinstance(value, dict) and "lat" in value and "lng" in value:
         try:
-            lat = float(value["lat"])
-            lng = float(value["lng"])
+            lat = float(value["lat"]); lng = float(value["lng"])
             return {"lat": lat, "lng": lng}
         except Exception:
             raise ValueError("lat/lng must be numeric.")
-
     if isinstance(value, str):
         g = geocode_address(value)
         return {"lat": g["lat"], "lng": g["lng"]}
-
     raise ValueError("Expected {lat,lng} or address string.")
+
+
 
 # === Error handler: return JSON instead of HTML debugger ===
 @app.errorhandler(Exception)
@@ -250,7 +273,7 @@ def create_delivery():
     if not order_id:
         return _err("orderId is required", 422)
 
-    # Warehouse as permanent origin (lat/lng) - use environment variables or default
+    # Warehouse as permanent origin (lat/lng)
     wh_lat = float(os.getenv("WAREHOUSE_LAT", "1.375645"))
     wh_lng = float(os.getenv("WAREHOUSE_LNG", "103.929573"))
     origin_latlng = {"lat": wh_lat, "lng": wh_lng}
@@ -339,7 +362,7 @@ def tracking(job_id):
         "pickup": job["pickup"],
         "dropoff": job["dropoff"],
         "stops": job["stops"],
-        "optimizedIntermediateWaypointIndex": job["route"].get("optimizedIntermediateWaypointIndex", []), # This is an array of indices indicating the new order of stops, we need this for relabelling the order of stops in the frontend
+        "optimizedIntermediateWaypointIndex": job["route"].get("optimizedIntermediateWaypointIndex", []), #This is an array of indices indicating the new order of stops, we need this for relabelling the order of stops in the frontend
     }
     if driver:
         view["driver"] = {
@@ -422,12 +445,17 @@ def update_driver_location(driver_id):
 # Serve the testing page, injecting the browser key from env
 @app.get("/testing")
 def testing():
-    """Testing interface for the delivery service with Google Maps integration"""
     # Guard: make 500s informative instead of cryptic
     js_key = os.getenv("GOOGLE_JS_KEY") or GOOGLE_API_KEY
     if not js_key:
-        # Return a simple message if no key is available
-        return jsonify({"error": "Google API key not configured for frontend testing"}), 500
+        # Renders a small page explaining what's missing
+        return render_template("testing.html", google_api_key=""), 200
+    return render_template("testing.html", google_api_key=js_key)
+
+
+
+
+if __name__ == "__main__":
 
     # For Docker environment, we'll return JSON instead of HTML template
     # In production, you can add proper template rendering

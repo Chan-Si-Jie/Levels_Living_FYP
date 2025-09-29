@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Delivery Route Tester</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: system-ui, Arial, sans-serif; margin: 0; display: grid; grid-template-columns: 360px 1fr; height: 100vh; }
+    aside { padding: 16px; border-right: 1px solid #eee; overflow: auto; }
+    #map { width: 100%; height: 100vh; }
+    label { display:block; margin: 10px 0 4px; font-size: 12px; text-transform: uppercase; color:#555; }
+    input, textarea, button { width: 100%; box-sizing: border-box; padding: 8px; }
+    textarea { height: 140px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .stat { margin-top: 8px; font-size: 14px; color:#222; }
+    .muted { color:#666; font-size: 12px; }
+    .ok { color: #0a7a2f; }
+    .err { color: #b00020; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <aside>
+    <h2>Delivery Route Tester</h2>
+
+    <label>API Base</label>
+    <input id="apiBase" value="http://localhost:5000" />
+
+    <label>New Delivery Payload (POST /deliveries)</label>
+    <textarea id="payload">
+{
+  "orderId": "ORD-12345",
+  "pickup":  {"lat": 1.375645, "lng": 103.929573},
+  "dropoff": {"lat": 1.352, "lng": 103.944},     
+  "stops":   [{"lat": 1.300, "lng": 103.800}]     
+}
+    </textarea>
+
+    <div class="row" style="margin-top:8px;">
+      <button id="createBtn">Create Delivery</button>
+      <button id="loadBtn">Load by Job ID</button>
+    </div>
+
+    <label style="margin-top:12px;">Job ID</label>
+    <input id="jobId" placeholder="auto-filled after Create" />
+
+    <div id="status" class="stat muted">No request yet.</div>
+    <div id="error" class="err"></div>
+
+    <div class="stat"><strong>Distance:</strong> <span id="distance">—</span></div>
+    <div class="stat"><strong>ETA:</strong> <span id="eta">—</span></div>
+    <div class="stat"><strong>Sequence:</strong></div>
+    <ol id="stopList" style="margin:6px 0 0 20px;max-height:200px;overflow:auto;"></ol>
+
+    <p class="muted">Tip: Use a <b>browser-restricted</b> key for the Maps JS below. Keep your Routes API key on the server.</p>
+  </aside>
+
+  <div id="map"></div>
+
+<script>
+  const API_BASE_INPUT = document.getElementById('apiBase');
+  const PAYLOAD = document.getElementById('payload');
+  const STATUS = document.getElementById('status');
+  const ERROR = document.getElementById('error');
+  const DIST = document.getElementById('distance');
+  const ETA = document.getElementById('eta');
+  const JOBID = document.getElementById('jobId');
+
+  let map, polyline, markers = [];
+
+  function initMap() {
+    map = new google.maps.Map(document.getElementById("map"), {
+      center: { lat: 1.29, lng: 103.85 },
+      zoom: 12,
+      mapTypeControl: false,
+      streetViewControl: false
+    });
+  }
+
+  async function createDelivery() {
+    clearUI();
+    const base = API_BASE_INPUT.value.replace(/\/$/, "");
+    let body;
+    try { body = JSON.parse(PAYLOAD.value); }
+    catch (e) { return showError("Invalid JSON in payload:\n" + e.message); }
+
+    STATUS.textContent = "Creating delivery…";
+    try {
+      const res = await fetch(`${base}/deliveries`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(JSON.stringify(data, null, 2));
+      JOBID.value = data.jobId;
+      STATUS.innerHTML = `<span class="ok">Created.</span> Rendering route…`;
+      await renderFromTracking(data.jobId);
+    } catch (e) {
+      showError(e.message);
+    }
+  }
+
+  async function renderFromTracking(jobId) {
+    const base = API_BASE_INPUT.value.replace(/\/$/, "");
+    const res = await fetch(`${base}/tracking/${encodeURIComponent(jobId)}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(JSON.stringify(data, null, 2));
+
+    // Update stats
+    DIST.textContent = data.distanceMeters ? (data.distanceMeters/1000).toFixed(1) + " km" : "—";
+    ETA.textContent = data.eta ? secondsToHms(parseInt(String(data.eta).replace("s",""))) : "—";
+    STATUS.innerHTML = `<span class="ok">Loaded.</span> Status: <b>${data.status}</b>`;
+
+    // Draw route with direction arrows
+    drawPolylineWithArrows(data.polyline);
+
+    // Build optimized sequence: [pickup] + ordered stops + [dropoff]
+    const pickup = data.pickup ? { ...data.pickup, _label: "S", _kind: "start" } : null;
+    const dropoff = data.dropoff ? { ...data.dropoff, _label: "E", _kind: "end" } : null;
+    const stops = Array.isArray(data.stops) ? data.stops : [];
+    const order = Array.isArray(data.optimizedIntermediateWaypointIndex) ? data.optimizedIntermediateWaypointIndex : [];
+    const orderedStops = (order.length ? order.map(i => stops[i]) : stops)
+      .map((s, i) => ({ ...s, _label: String(i+1), _kind: "stop" }));
+
+    const seq = [pickup, ...orderedStops, dropoff].filter(Boolean);
+
+    // Labeled markers + bounds
+    const positions = [];
+    clearMarkers();
+    seq.forEach((wp, i) => {
+      const pos = { lat: Number(wp.lat), lng: Number(wp.lng) };
+      positions.push(pos);
+      createLabeledMarker(pos, wp._label, wp._kind);
+    });
+    if (positions.length) fitBounds(positions);
+
+    // Sidebar list
+    const list = document.getElementById("stopList");
+    list.innerHTML = "";
+    seq.forEach((wp, i) => {
+      const li = document.createElement("li");
+      const tag = wp._kind === "start" ? "Start (Warehouse)" : (wp._kind === "end" ? "End" : `Stop ${wp._label}`);
+      li.textContent = `${tag} — (${Number(wp.lat).toFixed(5)}, ${Number(wp.lng).toFixed(5)})`;
+      li.style.cursor = "pointer";
+      li.onclick = () => {
+        map.panTo(positions[i]);
+        map.setZoom(15);
+        if (markers[i]) {
+          markers[i].setAnimation(google.maps.Animation.DROP);
+          setTimeout(() => markers[i] && markers[i].setAnimation(null), 600);
+        }
+      };
+      list.appendChild(li);
+    });
+  }
+
+  function drawPolylineWithArrows(encoded) {
+    if (!encoded) return showError("No encoded polyline returned.");
+    const path = decodePolylineToLatLngs(encoded);
+    if (polyline) polyline.setMap(null);
+    polyline = new google.maps.Polyline({
+      path,
+      map,
+      strokeColor: "#1565c0", //Change colour here
+      strokeOpacity: 0.95, 
+      strokeWeight: 3, //this is line thickness
+      icons: [{
+        icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW },
+        repeat: '120px'
+      }]
+    });
+  }
+
+  function decodePolylineToLatLngs(encoded) {
+    try {
+      const mvc = google.maps.geometry.encoding.decodePath(encoded);
+      return mvc.map(ll => ({ lat: ll.lat(), lng: ll.lng() }));
+    } catch (e) {
+      showError("Failed to decode polyline: " + e.message);
+      return [];
+    }
+  }
+
+  function createLabeledMarker(position, labelText, kind) {
+    const color =
+      kind === "start" ? "#2e7d32" :
+      kind === "end"   ? "#c62828" :
+                         "#1565c0";
+    const m = new google.maps.Marker({
+      position,
+      map,
+      label: { text: labelText, color: "#fff", fontWeight: "700" },
+      icon: {
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: 10,
+        fillColor: color,
+        fillOpacity: 1,
+        strokeColor: "#fff",
+        strokeWeight: 2
+      },
+      title: kind === "start" ? "Start (Warehouse)" : (kind === "end" ? "End" : `Stop ${labelText}`)
+    });
+    markers.push(m);
+    return m;
+  }
+
+  function fitBounds(pathOrPositions) {
+    const b = new google.maps.LatLngBounds();
+    pathOrPositions.forEach(p => b.extend(p));
+    map.fitBounds(b);
+  }
+
+  function clearMarkers() {
+    markers.forEach(m => m.setMap(null));
+    markers = [];
+  }
+
+  function secondsToHms(sec) {
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = sec % 60;
+    return [h?`${h}h`:null, m?`${m}m`:null, s?`${s}s`:null].filter(Boolean).join(" ");
+  }
+
+  function showError(msg) {
+    ERROR.textContent = msg;
+    STATUS.textContent = "Error occurred.";
+  }
+
+  function clearUI() {
+    ERROR.textContent = "";
+    STATUS.textContent = "Ready.";
+    DIST.textContent = "—";
+    ETA.textContent = "—";
+    if (polyline) polyline.setMap(null);
+    clearMarkers();
+  }
+
+  document.getElementById('createBtn').addEventListener('click', createDelivery);
+  document.getElementById('loadBtn').addEventListener('click', async () => {
+    clearUI();
+    const id = JOBID.value.trim();
+    if (!id) return showError("Enter a Job ID.");
+    STATUS.textContent = "Loading delivery…";
+    try { await renderFromTracking(id); }
+    catch (e) { showError(e.message); }
+  });
+</script>
+
+
+
+ <!-- Injected key from backend -->
+  <script async defer
+    src="https://maps.googleapis.com/maps/api/js?key={{ google_api_key }}&libraries=geometry&callback=initMap">
+  </script>
+
+
+
+
+</body>
+</html>
