@@ -1,0 +1,742 @@
+/* Reset and base styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Public Sans', sans-serif;
+    background-color: #FFFFFF;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+/* Main container - matches Figma width of 390px */
+.login-container {
+    width: 390px;
+    background-color: #FFFFFF;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 100vh;
+    max-height: 100vh;
+}
+
+/* Content section */
+.login-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+/* Logo section */
+.logo-section {
+    display: flex;
+    flex-direction: row;
+    justify-content: stretch;
+    align-items: stretch;
+    align-self: stretch;
+    padding: 16px 16px 8px;
+}
+
+.logo-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0px 48px;
+    flex: 1;
+}
+
+.logo {
+    width: 107px;
+    height: 44px;
+    object-fit: cover;
+}
+
+/* Welcome section */
+.welcome-section {
+    display: flex;
+    flex-direction: row;
+    justify-content: stretch;
+    align-items: stretch;
+    align-self: stretch;
+    padding: 16px 16px 8px;
+}
+
+.welcome-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0px 48px;
+    flex: 1;
+}
+
+.welcome-text {
+    font-family: 'Public Sans', sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    line-height: 1.2777777777777777em;
+    text-align: center;
+    color: #121417;
+    width: 100%;
+}
+
+/* Form section */
+.form-section {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.input-group {
+    display: flex;
+    flex-direction: row;
+    justify-content: stretch;
+    align-items: stretch;
+    align-self: stretch;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding: 12px 16px;
+}
+
+.input-container {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.input-field {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    align-self: stretch;
+    padding: 16px;
+    background-color: #F0F2F5;
+    border-radius: 8px;
+    height: 48px;
+}
+
+.email-input,
+.password-input {
+    font-family: 'Public Sans', sans-serif;
+    font-weight: 400;
+    font-size: 16px;
+    line-height: 1.5em;
+    color: #61758A;
+    background: transparent;
+    border: none;
+    outline: none;
+    width: 100%;
+}
+
+.email-input::placeholder,
+.password-input::placeholder {
+    color: #61758A;
+}
+
+/* Bottom section */
+.bottom-section {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 auto;
+}
+
+/* Button group */
+.button-group {
+    display: flex;
+    flex-direction: row;
+    justify-content: stretch;
+    align-items: stretch;
+    align-self: stretch;
+    padding: 12px 16px;
+}
+
+.button-container {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    padding: 0px 20px;
+    flex: 1;
+    height: 48px;
+}
+
+.signin-button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background-color: #1280ED;
+    border: none;
+    border-radius: 8px;
+    height: 48px;
+    width: 100%;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.signin-button:hover {
+    background-color: #0f6bc7;
+}
+
+.signin-text {
+    font-family: 'Public Sans', sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+    line-height: 1.5em;
+    text-align: center;
+    color: #FFFFFF;
+}
+
+/* Forgot password group */
+.forgot-password-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    align-self: stretch;
+    padding: 4px 16px 12px;
+}
+
+.forgot-password-link {
+    font-family: 'Public Sans', sans-serif;
+    font-weight: 400;
+    font-size: 14px;
+    line-height: 1.5em;
+    text-align: center;
+    color: #61758A;
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.forgot-password-link:hover {
+    color: #4a5a6b;
+}
+
+/* Spacer */
+.spacer {
+    height: 20px;
+    align-self: stretch;
+}
+
+/* Responsive design for smaller screens */
+@media (max-width: 430px) {
+    .login-container {
+        width: 100%;
+        max-width: 390px;
+    }
+    
+    .logo-container,
+    .welcome-container {
+        padding: 0px 24px;
+    }
+}
+
+/* Focus states for accessibility */
+.email-input:focus,
+.password-input:focus {
+    color: #121417;
+}
+
+.email-input:focus::placeholder,
+.password-input:focus::placeholder {
+    color: #9ca3af;
+}
+
+/* Button focus state */
+.signin-button:focus {
+    outline: 2px solid #1280ED;
+    outline-offset: 2px;
+}
+
+/* Link focus state */
+.forgot-password-link:focus {
+    outline: 2px solid #1280ED;
+    outline-offset: 2px;
+    border-radius: 2px;
+}
+
+/* ===== DELIVERIES PAGE STYLES ===== */
+
+/* Deliveries page container - matches Figma width of 390px */
+.deliveries-container {
+    width: 390px;
+    background-color: #FFFFFF;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    max-height: 100vh;
+    margin: 0 auto;
+}
+
+/* Main content area */
+.main-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow-y: auto;
+}
+
+/* Header section */
+.header-section {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    align-self: stretch;
+    padding: 16px 16px 8px;
+}
+
+.profile-section {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    width: 48px;
+    height: 48px;
+}
+
+.profile-image-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+}
+
+.profile-image {
+    width: 32px;
+    height: 32px;
+    background-color: #F0F2F5;
+    border-radius: 16px;
+    background-image: url('logo.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.title-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+}
+
+.page-title {
+    font-family: 'Public Sans', sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    line-height: 1.2777777777777777em;
+    text-align: center;
+    color: #121417;
+    margin: 0;
+}
+
+.action-section {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-end;
+    align-items: center;
+    width: 48px;
+}
+
+.action-button {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    width: 48px;
+    height: 48px;
+    background-color: #F0F2F5;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.action-button:hover {
+    background-color: #E5E7EB;
+}
+
+.action-icon {
+    width: 24px;
+    height: 24px;
+}
+
+/* Section headers */
+.section-header {
+    display: flex;
+    flex-direction: column;
+    align-self: stretch;
+    padding: 20px 16px 12px;
+}
+
+.section-title {
+    font-family: 'Public Sans', sans-serif;
+    font-weight: 700;
+    font-size: 22px;
+    line-height: 1.2727272727272727em;
+    text-align: left;
+    color: #121417;
+    margin: 0;
+}
+
+/* Delivery cards */
+.delivery-card {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    align-self: stretch;
+    gap: 16px;
+    padding: 8px 16px;
+    background-color: #FFFFFF;
+}
+
+.card-content {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 16px;
+    flex: 1;
+}
+
+.icon-container {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    width: 48px;
+    height: 48px;
+    background-color: #F0F2F5;
+    border-radius: 8px;
+}
+
+.calendar-icon {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.card-info {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    flex: 1;
+}
+
+.date-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.date-text {
+    font-family: 'Public Sans', sans-serif;
+    font-weight: 500;
+    font-size: 16px;
+    line-height: 1.5em;
+    text-align: left;
+    color: #121417;
+    margin: 0;
+}
+
+.delivery-count {
+    font-family: 'Public Sans', sans-serif;
+    font-weight: 400;
+    font-size: 14px;
+    line-height: 1.5em;
+    text-align: left;
+    color: #61758A;
+    margin: 0;
+}
+
+.card-action {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 24px;
+    height: 48px;
+}
+
+.action-icon-small {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+}
+
+.action-icon-small:hover {
+    opacity: 0.7;
+}
+
+/* Bottom navigation */
+.bottom-navigation {
+    display: flex;
+    flex-direction: row;
+    justify-content: stretch;
+    align-items: stretch;
+    align-self: stretch;
+    gap: 8px;
+    padding: 8px 16px 12px;
+    border-top: 1px solid #F0F2F5;
+    background-color: #FFFFFF;
+}
+
+.nav-item {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+    padding: 8px 0;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    border-radius: 27px;
+}
+
+.nav-item.active {
+    background-color: #F0F2F5;
+}
+
+.nav-icon {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    width: 24px;
+    height: 24px;
+    margin-bottom: 4px;
+}
+
+.nav-label {
+    font-family: 'Public Sans', sans-serif;
+    font-weight: 500;
+    font-size: 12px;
+    line-height: 1.5em;
+    text-align: center;
+    color: #61758A;
+}
+
+.nav-item.active .nav-label {
+    color: #121417;
+}
+
+/* Spacer for bottom navigation */
+.spacer {
+    height: 20px;
+    align-self: stretch;
+}
+
+/* Responsive design for deliveries page */
+@media (max-width: 430px) {
+    .deliveries-container {
+        width: 100%;
+        max-width: 390px;
+    }
+}
+
+/* Focus states for accessibility */
+.nav-item:focus {
+    outline: 2px solid #1280ED;
+    outline-offset: 2px;
+    border-radius: 27px;
+}
+
+.action-button:focus {
+    outline: 2px solid #1280ED;
+    outline-offset: 2px;
+    border-radius: 8px;
+}
+
+/* ===== DETAILS PAGE STYLES ===== */
+
+/* Back button in header */
+.back-button {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    width: 48px;
+    height: 48px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    border-radius: 8px;
+}
+
+.back-button:hover {
+    background-color: #F0F2F5;
+}
+
+.back-icon {
+    width: 24px;
+    height: 24px;
+}
+
+/* Delivery item styles */
+.delivery-item {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    align-self: stretch;
+    gap: 16px;
+    padding: 8px 16px;
+    background-color: #FFFFFF;
+    margin-bottom: 8px;
+}
+
+.delivery-info {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    flex: 1;
+}
+
+.customer-name {
+    font-family: 'Public Sans', sans-serif;
+    font-weight: 500;
+    font-size: 16px;
+    line-height: 1.5em;
+    text-align: left;
+    color: #121417;
+    margin: 0;
+    width: 160px;
+}
+
+.delivery-address {
+    font-family: 'Public Sans', sans-serif;
+    font-weight: 400;
+    font-size: 14px;
+    line-height: 1.5em;
+    text-align: left;
+    color: #61758A;
+    margin: 0;
+}
+
+.start-button {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    padding: 0px 16px;
+    width: 84px;
+    height: 32px;
+    background-color: #F0F2F5;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.start-button:hover {
+    background-color: #E5E7EB;
+}
+
+.start-text {
+    font-family: 'Public Sans', sans-serif;
+    font-weight: 500;
+    font-size: 14px;
+    line-height: 1.5em;
+    text-align: center;
+    color: #121417;
+}
+
+/* Action buttons row */
+.action-buttons-row {
+    display: flex;
+    flex-direction: row;
+    align-self: stretch;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 16px 16px 16px;
+    margin-bottom: 16px;
+}
+
+.action-button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    align-self: stretch;
+    gap: 8px;
+    padding: 10px 0px;
+    flex: 1;
+    min-width: 0;
+    background-color: #FFFFFF;
+}
+
+.action-icon-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    background-color: #F0F2F5;
+    border-radius: 20px;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.action-icon-container:hover {
+    background-color: #E5E7EB;
+}
+
+.action-icon {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.action-text {
+    font-family: 'Public Sans', sans-serif;
+    font-weight: 500;
+    font-size: 14px;
+    line-height: 1.5em;
+    text-align: center;
+    color: #121417;
+    width: 100%;
+}
+
+/* Responsive design for details page */
+@media (max-width: 430px) {
+    .deliveries-container {
+        width: 100%;
+        max-width: 390px;
+    }
+    
+    .customer-name {
+        width: auto;
+        max-width: 160px;
+    }
+}
+
+/* Focus states for details page */
+.back-button:focus {
+    outline: 2px solid #1280ED;
+    outline-offset: 2px;
+    border-radius: 8px;
+}
+
+.start-button:focus {
+    outline: 2px solid #1280ED;
+    outline-offset: 2px;
+    border-radius: 8px;
+}
+
+.action-icon-container:focus {
+    outline: 2px solid #1280ED;
+    outline-offset: 2px;
+    border-radius: 20px;
+}
