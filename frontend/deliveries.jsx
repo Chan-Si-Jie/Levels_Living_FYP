@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import "../styles.css";
+import "./styles.css";
 
 const deliveriesData = [
   { date: "2025-09-15", count: 12 },

@@ -1,23 +1,31 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom"; // 👈 add this for navigation
-import "../styles.css";
+import "./styles.css";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
-  const navigate = useNavigate(); // 👈 hook from react-router
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
 
-    // ✅ Mock login (skip backend)
-    if (email && password) {
-      console.log("Mock login success with:", { email, password });
-      navigate("/deliveries"); // 👈 redirect to Deliveries page
-    } else {
-      setError("Please enter email and password.");
+    try {
+      const response = await fetch("http://localhost:5000/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Login failed. Check your credentials.");
+      }
+
+      const data = await response.json();
+      console.log("Login success:", data);
+      // Save token or redirect depending on your app
+    } catch (err) {
+      setError(err.message);
     }
   };
 
@@ -27,7 +35,7 @@ export default function LoginPage() {
         {/* Logo Section */}
         <div className="logo-section">
           <div className="logo-container">
-            <img src="../logo.png" alt="Logo" className="logo" />
+            <img src="/logo.png" alt="Logo" className="logo" />
           </div>
         </div>
 

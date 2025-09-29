@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import "../styles.css";
+import "./styles.css";
 
 const DeliveryDetails = () => {
   const [deliveries, setDeliveries] = useState([]);
