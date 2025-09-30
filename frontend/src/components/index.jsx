@@ -12,12 +12,38 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
 
-    // ✅ Mock login (skip backend)
-    if (email && password) {
-      console.log("Mock login success with:", { email, password });
-      navigate("/deliveries"); // 👈 redirect to Deliveries page
-    } else {
-      setError("Please enter email and password.");
+    try {
+      // Call UserMS via Kong API Gateway
+      const response = await fetch('http://localhost:8000/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: email,
+          password: password
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.access_token) {
+        console.log("Login successful:", data.user);
+
+        // Store JWT token in localStorage
+        localStorage.setItem("jwt_token", data.access_token);
+        localStorage.setItem("refresh_token", data.refresh_token);
+        localStorage.setItem("user_email", data.user.email);
+        localStorage.setItem("user_role", data.user.role);
+
+        // Redirect to deliveries page
+        navigate("/deliveries");
+      } else {
+        setError(data.error || "Login failed. Please check your credentials.");
+      }
+    } catch (err) {
+      console.error("Login error:", err);
+      setError("Unable to connect to server. Please try again.");
     }
   };
 

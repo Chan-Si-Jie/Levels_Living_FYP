@@ -149,6 +149,8 @@ services:
     environment:
       - SERVICE_PORT=5004
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - WAREHOUSE_LAT=${WAREHOUSE_LAT}
+      - WAREHOUSE_LONG=${WAREHOUSE_LONG}
       - FLASK_ENV=production
     ports:
       - "5004:5004"

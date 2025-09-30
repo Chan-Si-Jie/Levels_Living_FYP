@@ -518,6 +518,430 @@ def get_order_tracking(order_id):
 
     return jsonify(tracking_info)
 
+# ============================================
+# DELIVERY SCHEDULING ENDPOINTS
+# ============================================
+
+@app.route('/orders/unscheduled', methods=['GET'])
+@auth_required
+def get_unscheduled_orders():
+    """
+    Get all unscheduled orders ready for scheduling.
+    Uses v_unscheduled_orders view which auto-sorts by priority.
+    """
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({"error": "Database connection failed"}), 500
+
+        cursor = connection.cursor(dictionary=True)
+
+        # Query the view that handles all the complex sorting
+        query = """
+            SELECT * FROM v_unscheduled_orders
+        """
+        cursor.execute(query)
+        orders = cursor.fetchall()
+
+        cursor.close()
+        connection.close()
+
+        return jsonify({
+            "success": True,
+            "count": len(orders),
+            "orders": orders
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error fetching unscheduled orders: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/orders/schedule', methods=['POST'])
+@auth_required
+def create_schedule():
+    """
+    Create a delivery schedule from selected orders.
+
+    Expected payload:
+    {
+        "order_ids": ["order-id-1", "order-id-2", ...],
+        "schedule_date": "2025-10-01",
+        "driver_id": "DRV001",  // optional
+        "team": "Team A"        // optional
+    }
+    """
+    try:
+        data = request.get_json()
+        order_ids = data.get('order_ids', [])
+        schedule_date = data.get('schedule_date')
+        driver_id = data.get('driver_id')
+        team = data.get('team')
+
+        # Get current user from JWT
+        current_user = get_jwt_identity()
+
+        # Validation
+        if not order_ids or len(order_ids) == 0:
+            return jsonify({"error": "No orders selected"}), 400
+
+        if not schedule_date:
+            return jsonify({"error": "Schedule date is required"}), 400
+
+        if len(order_ids) > 18:
+            return jsonify({"error": "Cannot schedule more than 18 locations per day"}), 400
+
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({"error": "Database connection failed"}), 500
+
+        cursor = connection.cursor(dictionary=True)
+
+        # Step 1: Get order details with customer info, sorted by priority and postal code
+        placeholders = ','.join(['%s'] * len(order_ids))
+        query = f"""
+            SELECT
+                o.order_id,
+                o.order_no,
+                o.order_type,
+                o.preferred_delivery_time,
+                c.customer_id,
+                c.customer_name,
+                c.customer_postal_code,
+                c.latitude,
+                c.longitude,
+                c.customer_street,
+                c.customer_unit,
+                CASE o.order_type
+                    WHEN 'asap' THEN 1
+                    WHEN 'adhoc' THEN 2
+                    WHEN 'pre_order' THEN 3
+                    WHEN 'custom_date' THEN 4
+                    ELSE 5
+                END as type_priority
+            FROM orders o
+            INNER JOIN customers c ON o.customer_id = c.customer_id
+            WHERE o.order_id IN ({placeholders})
+            AND o.is_scheduled = 0
+            ORDER BY type_priority ASC, c.customer_postal_code ASC
+        """
+
+        cursor.execute(query, order_ids)
+        orders = cursor.fetchall()
+
+        if len(orders) != len(order_ids):
+            cursor.close()
+            connection.close()
+            return jsonify({"error": "Some orders not found or already scheduled"}), 400
+
+        # Step 2: Create delivery_schedule record
+        schedule_id = str(uuid.uuid4())
+        insert_schedule_query = """
+            INSERT INTO delivery_schedules
+            (schedule_id, schedule_date, driver_id, team, total_locations, status, created_by)
+            VALUES (%s, %s, %s, %s, %s, 'draft', %s)
+        """
+        cursor.execute(insert_schedule_query, (
+            schedule_id,
+            schedule_date,
+            driver_id,
+            team,
+            len(orders),
+            current_user
+        ))
+
+        # Step 3: Create schedule_orders records with sequence numbers
+        schedule_orders_data = []
+        for idx, order in enumerate(orders, start=1):
+            schedule_order_id = str(uuid.uuid4())
+            schedule_orders_data.append((
+                schedule_order_id,
+                schedule_id,
+                order['order_id'],
+                idx,  # sequence_number
+                order['customer_postal_code'],
+                order['latitude'],
+                order['longitude']
+            ))
+
+        insert_schedule_orders_query = """
+            INSERT INTO schedule_orders
+            (schedule_order_id, schedule_id, order_id, sequence_number,
+             postal_code, latitude, longitude, status)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, 'scheduled')
+        """
+        cursor.executemany(insert_schedule_orders_query, schedule_orders_data)
+
+        # Step 4: Update orders as scheduled
+        update_orders_query = f"""
+            UPDATE orders
+            SET is_scheduled = 1,
+                scheduled_delivery_date = %s,
+                scheduled_by = %s,
+                scheduled_at = NOW()
+            WHERE order_id IN ({placeholders})
+        """
+        cursor.execute(update_orders_query, [schedule_date, current_user] + order_ids)
+
+        # Step 5: Prepare waypoints for DeliveryMS (postal codes)
+        # DeliveryMS will convert postal codes to lat/lng
+        waypoints = [
+            {
+                "order_id": order['order_id'],
+                "postal_code": order['customer_postal_code'],
+                "sequence": idx
+            }
+            for idx, order in enumerate(orders, start=1)
+        ]
+
+        # Step 6: Call DeliveryMS to optimize route
+        delivery_service = ServiceClient(app.config['DELIVERY_SERVICE_URL'], 'delivery-service')
+        route_response = delivery_service.post('/optimize-route', json={
+            "waypoints": waypoints,
+            "schedule_date": schedule_date
+        })
+
+        route_data = {}
+        if route_response and route_response.get('success'):
+            route_data = route_response.get('route', {})
+
+            # Update schedule with route data
+            update_schedule_query = """
+                UPDATE delivery_schedules
+                SET route_polyline = %s,
+                    total_distance_meters = %s,
+                    total_duration_seconds = %s,
+                    estimated_end_time = %s
+                WHERE schedule_id = %s
+            """
+            cursor.execute(update_schedule_query, (
+                route_data.get('polyline'),
+                route_data.get('distance_meters'),
+                route_data.get('duration_seconds'),
+                route_data.get('estimated_end_time'),
+                schedule_id
+            ))
+
+        cursor.close()
+        connection.close()
+
+        return jsonify({
+            "success": True,
+            "message": "Schedule created successfully",
+            "schedule_id": schedule_id,
+            "schedule_date": schedule_date,
+            "total_locations": len(orders),
+            "orders": [
+                {
+                    "order_no": order['order_no'],
+                    "sequence": idx,
+                    "customer": order['customer_name'],
+                    "postal_code": order['customer_postal_code']
+                }
+                for idx, order in enumerate(orders, start=1)
+            ],
+            "route": route_data
+        }), 201
+
+    except Exception as e:
+        logger.error(f"Error creating schedule: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/schedules/<schedule_date>', methods=['GET'])
+@auth_required
+def get_schedule_by_date(schedule_date):
+    """
+    Get all scheduled deliveries for a specific date.
+    Uses v_scheduled_deliveries view.
+    """
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({"error": "Database connection failed"}), 500
+
+        cursor = connection.cursor(dictionary=True)
+
+        query = """
+            SELECT * FROM v_scheduled_deliveries
+            WHERE schedule_date = %s
+            ORDER BY sequence_number ASC
+        """
+        cursor.execute(query, (schedule_date,))
+        deliveries = cursor.fetchall()
+
+        cursor.close()
+        connection.close()
+
+        # Group by schedule_id
+        schedules = {}
+        for delivery in deliveries:
+            schedule_id = delivery['schedule_id']
+            if schedule_id not in schedules:
+                schedules[schedule_id] = {
+                    "schedule_id": schedule_id,
+                    "schedule_date": delivery['schedule_date'],
+                    "driver_id": delivery['driver_id'],
+                    "driver_name": delivery['driver_name'],
+                    "driver_contact": delivery['driver_contact'],
+                    "team": delivery['team'],
+                    "total_locations": delivery['total_locations'],
+                    "max_locations": delivery['max_locations'],
+                    "remaining_capacity": delivery['remaining_capacity'],
+                    "status": delivery['schedule_status'],
+                    "start_time": str(delivery['start_time']) if delivery['start_time'] else None,
+                    "estimated_end_time": str(delivery['estimated_end_time']) if delivery['estimated_end_time'] else None,
+                    "route_polyline": delivery['route_polyline'],
+                    "deliveries": []
+                }
+
+            schedules[schedule_id]['deliveries'].append({
+                "sequence": delivery['sequence_number'],
+                "order_no": delivery['order_no'],
+                "order_type": delivery['order_type'],
+                "customer_name": delivery['customer_name'],
+                "customer_contact": delivery['customer_contact'],
+                "postal_code": delivery['customer_postal_code'],
+                "address": f"{delivery['customer_street']} {delivery['customer_unit']}".strip(),
+                "housing_type": delivery['housing_type'],
+                "total_items": delivery['total_items'],
+                "estimated_arrival": str(delivery['estimated_arrival_time']) if delivery['estimated_arrival_time'] else None,
+                "actual_arrival": str(delivery['actual_arrival_time']) if delivery['actual_arrival_time'] else None,
+                "status": delivery['delivery_status'],
+                "requires_warehouse_return": bool(delivery['requires_warehouse_return']),
+                "latitude": float(delivery['latitude']) if delivery['latitude'] else None,
+                "longitude": float(delivery['longitude']) if delivery['longitude'] else None
+            })
+
+        return jsonify({
+            "success": True,
+            "schedule_date": schedule_date,
+            "schedules": list(schedules.values())
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error fetching schedule: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/orders/<order_id>/complete', methods=['PATCH'])
+@auth_required
+def mark_delivery_complete(order_id):
+    """
+    Mark an order's delivery as completed.
+    Updates both order status and delivery_completed flag.
+    """
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({"error": "Database connection failed"}), 500
+
+        cursor = connection.cursor(dictionary=True)
+
+        # Check if order exists
+        cursor.execute("SELECT order_id, order_no, status FROM orders WHERE order_id = %s", (order_id,))
+        order = cursor.fetchone()
+
+        if not order:
+            cursor.close()
+            connection.close()
+            return jsonify({"error": "Order not found"}), 404
+
+        # Update order
+        update_query = """
+            UPDATE orders
+            SET delivery_completed = 1,
+                status = 'delivered',
+                updated_at = NOW()
+            WHERE order_id = %s
+        """
+        cursor.execute(update_query, (order_id,))
+
+        # Also update schedule_orders status if exists
+        update_schedule_query = """
+            UPDATE schedule_orders
+            SET status = 'delivered',
+                actual_arrival_time = NOW()
+            WHERE order_id = %s
+        """
+        cursor.execute(update_schedule_query, (order_id,))
+
+        cursor.close()
+        connection.close()
+
+        return jsonify({
+            "success": True,
+            "message": "Delivery marked as complete",
+            "order_id": order_id,
+            "order_no": order['order_no']
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error marking delivery complete: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/schedules/<schedule_id>', methods=['DELETE'])
+@auth_required
+def delete_schedule(schedule_id):
+    """Delete/unschedule a delivery schedule and reset all orders"""
+    try:
+        cursor = get_db_cursor()
+
+        # Check if schedule exists
+        cursor.execute(
+            "SELECT schedule_id, schedule_date, status FROM delivery_schedules WHERE schedule_id = %s",
+            (schedule_id,)
+        )
+        schedule = cursor.fetchone()
+
+        if not schedule:
+            return jsonify({"error": "Schedule not found"}), 404
+
+        # Get all orders in this schedule
+        cursor.execute("""
+            SELECT o.order_id, o.order_no
+            FROM orders o
+            JOIN schedule_orders so ON o.order_id = so.order_id
+            WHERE so.schedule_id = %s
+        """, (schedule_id,))
+        orders = cursor.fetchall()
+
+        # Reset all orders back to unscheduled
+        cursor.execute("""
+            UPDATE orders
+            SET is_scheduled = 0,
+                scheduled_delivery_date = NULL,
+                scheduled_by = NULL,
+                scheduled_at = NULL
+            WHERE order_id IN (
+                SELECT order_id FROM schedule_orders WHERE schedule_id = %s
+            )
+        """, (schedule_id,))
+
+        # Delete schedule_orders entries
+        cursor.execute("DELETE FROM schedule_orders WHERE schedule_id = %s", (schedule_id,))
+
+        # Delete the schedule
+        cursor.execute("DELETE FROM delivery_schedules WHERE schedule_id = %s", (schedule_id,))
+
+        db.commit()
+
+        logger.info(f"Schedule {schedule_id} deleted, {len(orders)} orders unscheduled")
+
+        return jsonify({
+            "success": True,
+            "message": f"Schedule deleted successfully",
+            "schedule_id": schedule_id,
+            "orders_unscheduled": len(orders)
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error deleting schedule: {e}")
+        db.rollback()
+        return jsonify({"error": str(e)}), 500
+
+
 # Error handlers
 @app.errorhandler(404)
 def not_found(error):
