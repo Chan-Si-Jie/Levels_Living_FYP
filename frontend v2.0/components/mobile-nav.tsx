@@ -2,12 +2,13 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Package, Truck, Warehouse, MapPin } from "lucide-react"
+import { Package, Truck, Warehouse, MapPin, Calendar } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const navItems = [
   { href: "/pack", label: "Pack", icon: Package },
   { href: "/delivery", label: "Delivery", icon: Truck },
+  { href: "/schedule", label: "Schedule", icon: Calendar },
   { href: "/inventory", label: "Inventory", icon: Warehouse },
   { href: "/overview", label: "Overview", icon: MapPin },
 ]
