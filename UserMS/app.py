@@ -344,7 +344,7 @@ def register():
             return jsonify({"error": "Invalid email format"}), 400
         
         # Validate role
-        allowed_roles = ['admin', 'warehouse', 'driver', 'hq', 'customer_service']
+        allowed_roles = ['admin', 'driver']
         if data['role'] not in allowed_roles:
             return jsonify({"error": f"Invalid role. Must be one of: {', '.join(allowed_roles)}"}), 400
         
@@ -472,7 +472,7 @@ def validate_token():
         return jsonify({"error": "Internal server error"}), 500
 
 @app.route('/auth/users', methods=['GET'])
-@role_required(['admin', 'hq'])
+@role_required(['admin'])
 def list_users():
     """List all users (admin only)"""
     try:

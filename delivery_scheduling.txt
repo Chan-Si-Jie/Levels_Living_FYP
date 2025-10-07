@@ -1,0 +1,44 @@
+order comes in from shopify API. 
+(fields are auto populated except for delivery details and scheduling)
+
+Delivery scheduling route starts from the east to the west side of Singapore, put lat long into google maps api.
+
+Delivery agreement with the 3rd pt company is to 18 delivery locations per day.
+If multiple items for one customer, the driver will make 2 trips to the warehouse on that day itself if there are too many items for the lorry.
+
+Sort delivery based on customer order remarks, add in 4 types: 1. pre-order, 2. asap delivery, 3. last minute delivery (adhoc), 4. date chosen by customer (manual fill)
+
+Last minute adhoc delivery is currently done manually in sponsor's system.
+
+Automated sorting of locations first over the item sizes.
+Remarks are keyed in when the orders come in. 
+
+They only choose the orders they want to schedule.  
+(Pre-order, scheduled for delivery etc etc)
+
+Plan route based on postal code (from east side to west side)
+Route is standard, items have variance - locations have variances etc etc. 
+
+Re-delivery of minorly damaged items, standard procedure will be put to the next scheduling period, aka next week. 
+(about one item a month)
+
+When deliveries are complete and appsheet confirmation, the google sheets will update with TRUE + image of the delivery driver signature.
+
+Appsheet has already configured with a telegram message to the HQ team indicate item has been delivered.
+
+Maybe give a rough (real-time-tracking) to give ETA of the customer. 
+Timelog delivery timing based on location 
+(when order done on appsheet?)
+
+WhatsApp pre-loaded msg for notifications 
+(can stick to manual sending for now - HQ send the messages)
+
+
+
+
+Shopify App:
+Icon on shopify app to basically open our application.
+
+For time constraints: we can make use of web-app and just have a link inside Shopify App.
+
+Rationale to integrate all into one platform: - for efficiency. Don't have to make google sheets for the manual scheduling.

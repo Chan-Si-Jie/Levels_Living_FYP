@@ -65,4 +65,5 @@ services:
       - name: order-route
         paths:
           - /orders
+          - /schedules
         strip_path: false

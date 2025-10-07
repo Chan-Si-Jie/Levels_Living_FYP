@@ -663,7 +663,7 @@ def health_check():
     }), 200
 
 @app.route('/inventory/products', methods=['POST'])
-@role_required(['admin', 'hq'])
+@role_required(['admin'])
 def create_product():
     """Create a new product in inventory"""
     try:
@@ -680,7 +680,7 @@ def create_product():
         return jsonify({"error": "Internal server error"}), 500
 
 @app.route('/inventory/products/<sku>', methods=['GET'])
-@role_required(['admin', 'hq', 'warehouse', 'driver'])
+@role_required(['admin', 'driver'])
 def get_product(sku):
     """Get product by SKU"""
     try:
@@ -692,7 +692,7 @@ def get_product(sku):
         return jsonify({"error": "Internal server error"}), 500
 
 @app.route('/inventory/products/<sku>', methods=['PUT'])
-@role_required(['admin', 'hq'])
+@role_required(['admin'])
 def update_product(sku):
     """Update product information"""
     try:
@@ -709,7 +709,7 @@ def update_product(sku):
         return jsonify({"error": "Internal server error"}), 500
 
 @app.route('/inventory/delivery-requirements', methods=['POST'])
-@role_required(['admin', 'hq', 'warehouse'])
+@role_required(['admin'])
 def get_delivery_requirements():
     """Get delivery requirements for multiple SKUs - Used by Order MS"""
     try:
@@ -726,7 +726,7 @@ def get_delivery_requirements():
         return jsonify({"error": "Internal server error"}), 500
 
 @app.route('/inventory/products', methods=['GET'])
-@role_required(['admin', 'hq', 'warehouse', 'driver'])
+@role_required(['admin', 'driver'])
 def search_products():
     """Search products with filters"""
     try:
@@ -752,7 +752,7 @@ def search_products():
         return jsonify({"error": "Internal server error"}), 500
 
 @app.route('/inventory/delivery-types', methods=['GET'])
-@role_required(['admin', 'hq', 'warehouse', 'driver'])
+@role_required(['admin', 'driver'])
 def get_delivery_types():
     """Get all available delivery types"""
     try:

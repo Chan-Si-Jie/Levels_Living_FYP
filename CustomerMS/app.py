@@ -485,7 +485,7 @@ def health_check():
     }), 200
 
 @app.route('/customers', methods=['POST'])
-@role_required(['admin', 'hq', 'customer_service'])
+@role_required(['admin'])
 def create_customer():
     """Create a new customer"""
     try:
@@ -507,7 +507,7 @@ def create_customer():
         return jsonify({"error": "Internal server error"}), 500
 
 @app.route('/customers/<customer_id>', methods=['GET'])
-@role_required(['admin', 'hq', 'customer_service', 'warehouse', 'driver'])
+@role_required(['admin', 'driver'])
 def get_customer(customer_id):
     """Get customer by ID"""
     try:
@@ -519,7 +519,7 @@ def get_customer(customer_id):
         return jsonify({"error": "Internal server error"}), 500
 
 @app.route('/customers/contact/<contact>', methods=['GET'])
-@role_required(['admin', 'hq', 'customer_service', 'warehouse', 'driver'])
+@role_required(['admin', 'driver'])
 def get_customer_by_contact(contact):
     """Get customer by contact number"""
     try:
@@ -531,7 +531,7 @@ def get_customer_by_contact(contact):
         return jsonify({"error": "Internal server error"}), 500
 
 @app.route('/customers', methods=['GET'])
-@role_required(['admin', 'hq', 'customer_service'])
+@role_required(['admin'])
 def search_customers():
     """Search customers with filters"""
     try:
@@ -555,7 +555,7 @@ def search_customers():
         return jsonify({"error": "Internal server error"}), 500
 
 @app.route('/customers/validate', methods=['POST'])
-@role_required(['admin', 'hq', 'customer_service'])
+@role_required(['admin'])
 def validate_customer_data():
     """Validate customer data without saving"""
     try:

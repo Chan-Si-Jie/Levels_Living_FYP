@@ -1,0 +1,11 @@
+{
+  "/login/page": "app/login/page.js",
+  "/hq-dashboard/page": "app/hq-dashboard/page.js",
+  "/delivery/page": "app/delivery/page.js",
+  "/inventory/page": "app/inventory/page.js",
+  "/inventory/[id]/page": "app/inventory/[id]/page.js",
+  "/schedule/page": "app/schedule/page.js",
+  "/pack/page": "app/pack/page.js",
+  "/delivery/[id]/page": "app/delivery/[id]/page.js",
+  "/delivery/[id]/[deliveryId]/page": "app/delivery/[id]/[deliveryId]/page.js"
+}

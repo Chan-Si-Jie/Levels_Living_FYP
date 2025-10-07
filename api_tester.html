@@ -1,0 +1,1510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Levels Living API Testing Dashboard</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --danger-color: #e74c3c;
+            --light-bg: #ecf0f1;
+            --dark-bg: #34495e;
+            --text-color: #2c3e50;
+            --border-color: #bdc3c7;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: var(--text-color);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-around;
+            background: white;
+            padding: 1rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .service-status {
+            text-align: center;
+            padding: 0.5rem;
+        }
+
+        .service-status.online {
+            color: var(--success-color);
+        }
+
+        .service-status.offline {
+            color: var(--danger-color);
+        }
+
+        .auth-status {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.5rem 1rem;
+            background: var(--light-bg);
+            border-radius: 8px;
+            border: 2px solid var(--border-color);
+            min-width: 300px;
+        }
+
+        .auth-status.authenticated {
+            border-color: var(--success-color);
+            background: linear-gradient(135deg, #f8fff9 0%, #e8f5e8 100%);
+        }
+
+        .auth-info {
+            flex: 1;
+        }
+
+        .auth-label {
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-bottom: 0.2rem;
+        }
+
+        .auth-details {
+            font-size: 0.8rem;
+            opacity: 0.8;
+        }
+
+        .auth-details.authenticated {
+            color: var(--success-color);
+            font-weight: 600;
+            opacity: 1;
+        }
+
+        .auth-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn-sm {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.8rem;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .service-panel {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .service-panel:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+        }
+
+        .panel-header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            padding: 1.5rem;
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+
+        .panel-content {
+            padding: 1.5rem;
+        }
+
+        .endpoint-section {
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: var(--light-bg);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+
+        .endpoint-section h3 {
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+            border-bottom: 2px solid var(--secondary-color);
+            padding-bottom: 0.5rem;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .form-group {
+            flex: 1;
+            margin-bottom: 1rem;
+        }
+
+        .form-group.full-width {
+            flex: 100%;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--text-color);
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 0.8rem;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+
+        textarea {
+            height: 100px;
+            resize: vertical;
+            font-family: 'Courier New', monospace;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--secondary-color) 0%, #2980b9 100%);
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin-right: 0.5rem;
+            margin-bottom: 0.5rem;
+            display: inline-block;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.3);
+        }
+
+        .btn.success {
+            background: linear-gradient(135deg, var(--success-color) 0%, #229954 100%);
+        }
+
+        .btn.success:hover {
+            box-shadow: 0 6px 20px rgba(39, 174, 96, 0.3);
+        }
+
+        .btn.warning {
+            background: linear-gradient(135deg, var(--warning-color) 0%, #e67e22 100%);
+        }
+
+        .btn.warning:hover {
+            box-shadow: 0 6px 20px rgba(243, 156, 18, 0.3);
+        }
+
+        .btn.danger {
+            background: linear-gradient(135deg, var(--danger-color) 0%, #c0392b 100%);
+        }
+
+        .btn.danger:hover {
+            box-shadow: 0 6px 20px rgba(231, 76, 60, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .token-display {
+            background: var(--dark-bg);
+            color: white;
+            padding: 1rem;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            word-break: break-all;
+            margin-bottom: 1rem;
+            position: relative;
+        }
+
+        .token-display::before {
+            content: '🔐 Active Session';
+            position: absolute;
+            top: -10px;
+            left: 10px;
+            background: var(--success-color);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+        }
+
+        .response-panel {
+            grid-column: 1 / -1;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .response-header {
+            background: var(--dark-bg);
+            color: white;
+            padding: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .response-content {
+            background: #1e1e1e;
+            color: #f8f8f2;
+            padding: 1.5rem;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            max-height: 500px;
+            overflow-y: auto;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+        }
+
+        .status-success {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .status-error {
+            background: var(--danger-color);
+            color: white;
+        }
+
+        .status-warning {
+            background: var(--warning-color);
+            color: white;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .loading {
+            position: relative;
+        }
+
+        .loading::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            right: 10px;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #fff;
+            border-top: 2px solid transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .form-row {
+                flex-direction: column;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+        }
+
+        /* JSON Syntax Highlighting */
+        .json-key {
+            color: #e6db74;
+        }
+        .json-string {
+            color: #a6e22e;
+        }
+        .json-number {
+            color: #ae81ff;
+        }
+        .json-boolean {
+            color: #66d9ef;
+        }
+        .json-null {
+            color: #f92672;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🏠 Levels Living API Testing Dashboard</h1>
+            <p>Comprehensive testing interface for all microservices</p>
+        </div>
+
+        <!-- Service Status Bar -->
+        <div class="status-bar">
+            <div class="service-status" id="userStatus">
+                <div>👤 UserMS</div>
+                <div>Checking...</div>
+            </div>
+            <div class="service-status" id="customerStatus">
+                <div>👥 CustomerMS</div>
+                <div>Checking...</div>
+            </div>
+            <div class="service-status" id="inventoryStatus">
+                <div>📦 InventoryMS</div>
+                <div>Checking...</div>
+            </div>
+            <div class="service-status" id="deliveryStatus">
+                <div>🚚 DeliveryMS</div>
+                <div>Checking...</div>
+            </div>
+            <div class="service-status" id="orderStatus">
+                <div>📋 OrderMS</div>
+                <div>Checking...</div>
+            </div>
+
+            <!-- User Authentication Status -->
+            <div class="auth-status" id="authStatus">
+                <div class="auth-info" id="authInfo">
+                    <div class="auth-label">🔐 Authentication</div>
+                    <div class="auth-details" id="authDetails">Not logged in</div>
+                </div>
+                <div class="auth-actions" id="authActions" style="display: none;">
+                    <button class="btn btn-sm danger" onclick="logoutUser()">Logout</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Grid -->
+        <div class="main-grid">
+            <!-- UserMS Panel -->
+            <div class="service-panel">
+                <div class="panel-header">
+                    👤 User Management Service
+                </div>
+                <div class="panel-content">
+                    <!-- Current Session -->
+                    <div class="endpoint-section" id="sessionSection" style="display: none;">
+                        <h3>Current Session</h3>
+                        <div class="token-display" id="tokenDisplay">No active session</div>
+                        <button class="btn" onclick="getUserProfile()">Get Profile</button>
+                        <button class="btn" onclick="validateToken()">Validate Token</button>
+                        <button class="btn" onclick="listUsers()">List Users</button>
+                        <button class="btn danger" onclick="logoutUser()">Logout</button>
+                    </div>
+
+                    <!-- User Registration -->
+                    <div class="endpoint-section">
+                        <h3>User Registration</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Email:</label>
+                                <input type="email" id="regEmail" value="test@levels.sg" placeholder="user@example.com">
+                            </div>
+                            <div class="form-group">
+                                <label>Role:</label>
+                                <select id="regRole">
+                                    <option value="admin">Admin</option>
+                                    <option value="driver">Driver</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Password:</label>
+                            <input type="password" id="regPassword" value="securePassword123!" placeholder="Minimum 8 characters">
+                        </div>
+                        <button class="btn success" onclick="registerUser()">Register User</button>
+                        <button class="btn" onclick="testUserHealth()">Check Health</button>
+                    </div>
+
+                    <!-- User Login -->
+                    <div class="endpoint-section">
+                        <h3>User Authentication</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Email:</label>
+                                <input type="email" id="loginEmail" value="test@levels.sg" placeholder="user@example.com">
+                            </div>
+                            <div class="form-group">
+                                <label>Password:</label>
+                                <input type="password" id="loginPassword" value="securePassword123!" placeholder="Password">
+                            </div>
+                        </div>
+                        <button class="btn success" onclick="loginUser()">Login</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CustomerMS Panel -->
+            <div class="service-panel">
+                <div class="panel-header">
+                    👥 Customer Management Service
+                </div>
+                <div class="panel-content">
+                    <!-- Create Customer -->
+                    <div class="endpoint-section">
+                        <h3>Create Customer</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Contact Number:</label>
+                                <input type="tel" id="custContact" value="+6591234567" placeholder="+6591234567">
+                            </div>
+                            <div class="form-group">
+                                <label>Postal Code:</label>
+                                <input type="text" id="custPostal" value="238123" placeholder="6-digit postal code">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Street Address:</label>
+                                <input type="text" id="custStreet" value="123 Orchard Road" placeholder="Street Address">
+                            </div>
+                            <div class="form-group">
+                                <label>Unit Number:</label>
+                                <input type="text" id="custUnit" value="#12-34" placeholder="Unit Number">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Housing Type:</label>
+                            <select id="custHousingType">
+                                <option value="Condo">Condo</option>
+                                <option value="HDB">HDB</option>
+                                <option value="Landed">Landed</option>
+                                <option value="Commercial">Commercial</option>
+                            </select>
+                        </div>
+                        <button class="btn success" onclick="createCustomer()">Create Customer</button>
+                        <button class="btn" onclick="testCustomerHealth()">Check Health</button>
+                    </div>
+
+                    <!-- Search Customers -->
+                    <div class="endpoint-section">
+                        <h3>Search & Manage Customers</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Customer ID:</label>
+                                <input type="text" id="searchCustomerId" placeholder="Customer UUID">
+                            </div>
+                            <div class="form-group">
+                                <label>Contact Number:</label>
+                                <input type="tel" id="searchContact" placeholder="+6591234567">
+                            </div>
+                        </div>
+                        <button class="btn" onclick="searchAllCustomers()">Get All Customers</button>
+                        <button class="btn" onclick="searchCustomerById()">Search by ID</button>
+                        <button class="btn" onclick="searchCustomerByContact()">Search by Contact</button>
+                        <button class="btn warning" onclick="validateCustomerData()">Validate Test Data</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- InventoryMS Panel -->
+            <div class="service-panel">
+                <div class="panel-header">
+                    📦 Inventory Management Service
+                </div>
+                <div class="panel-content">
+                    <!-- Create Product -->
+                    <div class="endpoint-section">
+                        <h3>Create Product</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>SKU:</label>
+                                <input type="text" id="prodSKU" value="TEST001" placeholder="Product SKU">
+                            </div>
+                            <div class="form-group">
+                                <label>Category:</label>
+                                <select id="prodCategory">
+                                    <option value="Furniture">Furniture</option>
+                                    <option value="Electronics">Electronics</option>
+                                    <option value="Home Decor">Home Decor</option>
+                                    <option value="Appliances">Appliances</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Item Name:</label>
+                                <input type="text" id="prodName" value="Test Office Chair" placeholder="Product Name">
+                            </div>
+                            <div class="form-group">
+                                <label>Price ($):</label>
+                                <input type="number" id="prodPrice" value="299.99" step="0.01" placeholder="Unit Price">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Weight (kg):</label>
+                                <input type="number" id="prodWeight" value="15.5" step="0.1" placeholder="Weight per unit">
+                            </div>
+                            <div class="form-group">
+                                <label>Delivery Type:</label>
+                                <select id="prodDeliveryType">
+                                    <option value="standard">Standard</option>
+                                    <option value="heavy_item">Heavy Item</option>
+                                    <option value="fragile">Fragile</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Description:</label>
+                            <textarea id="prodDescription" placeholder="Product description">Ergonomic office chair for testing purposes</textarea>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Width (cm):</label>
+                                <input type="number" id="prodWidth" value="52" step="0.1" placeholder="Width in cm">
+                            </div>
+                            <div class="form-group">
+                                <label>Depth (cm):</label>
+                                <input type="number" id="prodDepth" value="35" step="0.1" placeholder="Depth in cm">
+                            </div>
+                            <div class="form-group">
+                                <label>Height (cm):</label>
+                                <input type="number" id="prodHeight" value="55" step="0.1" placeholder="Height in cm">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>
+                                    <input type="checkbox" id="prodLegInfoCheck" onchange="
+                                        document.getElementById('prodLegHeight').disabled = !this.checked;
+                                        document.getElementById('prodAdditionalInfo').disabled = !this.checked;
+                                    ">
+                                    More Info?
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label>Leg Height (cm):</label>
+                                <input type="number" id="prodLegHeight" value="15" step="0.1" placeholder="Leg height (optional)" disabled>
+                            </div>
+                            <div class="form-group">
+                                <label>Additional Info:</label>
+                                <input type="text" id="prodAdditionalInfo" value="with legs included" placeholder="e.g., with legs included" disabled>
+                            </div>
+                        </div>
+                        <button class="btn success" onclick="createProduct()">Create Product</button>
+                        <button class="btn" onclick="testInventoryHealth()">Check Health</button>
+                    </div>
+
+                    <!-- Search Products -->
+                    <div class="endpoint-section">
+                        <h3>Search & Manage Products</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Product SKU:</label>
+                                <input type="text" id="searchSKU" placeholder="e.g., TEST001 or CU-1 or SC18/WAL">
+                            </div>
+                            <div class="form-group">
+                                <label>Category Filter:</label>
+                                <select id="searchCategory">
+                                    <option value="">All Categories</option>
+                                    <option value="Furniture">Furniture</option>
+                                    <option value="Electronics">Electronics</option>
+                                    <option value="Home Decor">Home Decor</option>
+                                    <option value="Appliances">Appliances</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button class="btn" onclick="searchAllProducts()">Get All Products</button>
+                        <button class="btn" onclick="searchProductBySKU()">Search by SKU</button>
+                        <button class="btn" onclick="searchProductsByCategory()">Filter by Category</button>
+                        <button class="btn warning" onclick="getDeliveryTypes()">Get Delivery Types</button>
+                        <button class="btn warning" onclick="getDeliveryRequirements()">Get Delivery Requirements</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DeliveryMS Panel -->
+            <div class="service-panel">
+                <div class="panel-header" onclick="togglePanel('deliveryPanel')">
+                    🚚 Delivery Management Service
+                    <span class="toggle-icon">▼</span>
+                </div>
+                <div class="panel-content" id="deliveryPanel">
+
+                    <!-- Route Optimization -->
+                    <div class="endpoint-section">
+                        <h3>Route Optimization</h3>
+                        <div class="form-group">
+                            <label>Postal Codes (comma-separated):</label>
+                            <textarea id="routePostalCodes" rows="3" placeholder="188945,310152,311141,320076">188945,310152,311141,320076</textarea>
+                        </div>
+                        <button class="btn success" onclick="optimizeRoute()">Optimize Route</button>
+                        <button class="btn" onclick="testDeliveryHealth()">Check Health</button>
+                    </div>
+
+                    <!-- Geocoding -->
+                    <div class="endpoint-section">
+                        <h3>Geocoding Service</h3>
+                        <div class="form-group">
+                            <label>Postal Code or Address:</label>
+                            <input type="text" id="geocodePostal" value="188945" placeholder="e.g., 188945 or 10 Bayfront Ave">
+                        </div>
+                        <button class="btn" onclick="geocodePostal()">Get Coordinates</button>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- OrderMS Panel -->
+            <div class="service-panel">
+                <div class="panel-header" onclick="togglePanel('orderPanel')">
+                    📋 Order Management Service
+                    <span class="toggle-icon">▼</span>
+                </div>
+                <div class="panel-content" id="orderPanel">
+
+                    <!-- Get Unscheduled Orders -->
+                    <div class="endpoint-section">
+                        <h3>Scheduling Operations</h3>
+                        <button class="btn success" onclick="getUnscheduledOrders()">Get Unscheduled Orders</button>
+                        <button class="btn success" onclick="getAllSchedules()">Get All Schedules</button>
+                        <button class="btn" onclick="testOrderHealth()">Check Health</button>
+                    </div>
+
+                    <!-- Create Schedule -->
+                    <div class="endpoint-section">
+                        <h3>Create Delivery Schedule</h3>
+                        <div class="form-group">
+                            <label>Order IDs (comma-separated):</label>
+                            <textarea id="scheduleOrderIds" rows="2" placeholder="order-id-1,order-id-2,order-id-3"></textarea>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Schedule Date:</label>
+                                <input type="date" id="scheduleDate" value="">
+                            </div>
+                            <div class="form-group">
+                                <label>Driver ID (optional):</label>
+                                <input type="text" id="scheduleDriverId" placeholder="driver-uuid">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Team (optional):</label>
+                            <input type="text" id="scheduleTeam" placeholder="Team A">
+                        </div>
+                        <button class="btn success" onclick="createSchedule()">Create Schedule</button>
+                    </div>
+
+                    <!-- Get Schedule by Date -->
+                    <div class="endpoint-section">
+                        <h3>View Schedule</h3>
+                        <div class="form-group">
+                            <label>Date:</label>
+                            <input type="date" id="viewScheduleDate" value="">
+                        </div>
+                        <button class="btn" onclick="getScheduleByDate()">Get Schedule by Date</button>
+                    </div>
+
+                    <!-- Get All Orders -->
+                    <div class="endpoint-section">
+                        <h3>Order Management</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Page:</label>
+                                <input type="number" id="orderPage" value="1" min="1">
+                            </div>
+                            <div class="form-group">
+                                <label>Per Page:</label>
+                                <input type="number" id="orderPerPage" value="10" min="1" max="100">
+                            </div>
+                        </div>
+                        <button class="btn" onclick="getAllOrders()">Get All Orders</button>
+                    </div>
+
+                    <!-- Get Order by ID -->
+                    <div class="endpoint-section">
+                        <h3>Order Details</h3>
+                        <div class="form-group">
+                            <label>Order ID:</label>
+                            <input type="text" id="orderIdSearch" placeholder="order-uuid">
+                        </div>
+                        <button class="btn" onclick="getOrderById()">Get Order Details</button>
+                    </div>
+
+                    <!-- Mark Delivery Complete -->
+                    <div class="endpoint-section">
+                        <h3>Complete Delivery</h3>
+                        <div class="form-group">
+                            <label>Order ID:</label>
+                            <input type="text" id="completeOrderId" placeholder="order-uuid">
+                        </div>
+                        <button class="btn warning" onclick="markDeliveryComplete()">Mark as Complete</button>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Response Panel -->
+            <div class="response-panel">
+                <div class="response-header">
+                    <h2>📡 API Response Monitor</h2>
+                    <button class="btn" onclick="clearResponses()">Clear Log</button>
+                </div>
+                <div class="response-content" id="responseContent">
+🚀 Welcome to Levels Living API Testing Dashboard!
+
+Ready to test your microservices. Use the panels above to interact with your APIs.
+
+💡 Tips:
+• Start by checking service health status
+• Register a user and login to get authentication tokens
+• Use the authenticated session to test protected endpoints
+• All API responses will appear here with timestamps and status codes
+
+Happy testing! 🧪
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const CONFIG = {
+            USER_API: 'http://localhost:5001',
+            CUSTOMER_API: 'http://localhost:5002',
+            INVENTORY_API: 'http://localhost:5003',
+            DELIVERY_API: 'http://localhost:5004',
+            ORDER_API: 'http://localhost:5005',
+            KONG_API: 'http://localhost:8000'
+        };
+
+        // Global state
+        let currentToken = null;
+        let refreshToken = null;
+        let sessionId = null;
+        let currentUser = null;
+
+        // Utility Functions
+        function formatJSON(data) {
+            return JSON.stringify(data, null, 2)
+                .replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?)/g, '<span class="json-key">$1</span>')
+                .replace(/: ("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*")/g, ': <span class="json-string">$1</span>')
+                .replace(/: (true|false)/g, ': <span class="json-boolean">$1</span>')
+                .replace(/: (null)/g, ': <span class="json-null">$1</span>')
+                .replace(/: (-?\d+\.?\d*)/g, ': <span class="json-number">$1</span>');
+        }
+
+        function displayResponse(method, url, status, data, error = null) {
+            const timestamp = new Date().toLocaleTimeString();
+            let statusClass = 'status-success';
+            
+            if (status >= 400) statusClass = 'status-error';
+            else if (status >= 300) statusClass = 'status-warning';
+            
+            const statusBadge = `<span class="status-badge ${statusClass}">${status}</span>`;
+            const errorMsg = error ? `❌ Error: ${error}\n\n` : '';
+            
+            const logEntry = `[${timestamp}] ${method} ${url} ${statusBadge}
+${errorMsg}${formatJSON(data)}
+
+${'═'.repeat(80)}
+
+`;
+            
+            const responseContent = document.getElementById('responseContent');
+            responseContent.innerHTML = logEntry + responseContent.innerHTML;
+        }
+
+        function updateSessionDisplay() {
+            console.log('🔄 Updating session display');
+            console.log('🔑 Current token exists:', !!currentToken);
+            console.log('👤 Current user:', currentUser);
+            
+            const sessionSection = document.getElementById('sessionSection');
+            const tokenDisplay = document.getElementById('tokenDisplay');
+            
+            if (currentToken) {
+                console.log('✅ Showing session section');
+                sessionSection.style.display = 'block';
+                tokenDisplay.innerHTML = `
+                    <strong>User:</strong> ${currentUser?.email || 'N/A'}<br>
+                    <strong>Role:</strong> ${currentUser?.role || 'N/A'}<br>
+                    <strong>Token:</strong> ${currentToken.substring(0, 40)}...
+                `;
+                console.log('🎨 Session display updated with user info');
+            } else {
+                console.log('❌ Hiding session section (no token)');
+                sessionSection.style.display = 'none';
+            }
+            
+            // Update the top status bar authentication display
+            updateAuthStatus();
+        }
+
+        function updateAuthStatus() {
+            console.log('🔐 Updating authentication status bar');
+            
+            const authStatus = document.getElementById('authStatus');
+            const authDetails = document.getElementById('authDetails');
+            const authActions = document.getElementById('authActions');
+            
+            if (currentToken && currentUser) {
+                console.log('✅ User authenticated - updating status bar');
+                
+                // Update status bar styling
+                authStatus.classList.add('authenticated');
+                authDetails.classList.add('authenticated');
+                
+                // Update text content
+                const loginTime = new Date().toLocaleTimeString();
+                authDetails.innerHTML = `
+                    <strong>${currentUser.email}</strong><br>
+                    <small>Role: ${currentUser.role} | Login: ${loginTime}</small>
+                `;
+                
+                // Show logout button
+                authActions.style.display = 'flex';
+                
+                console.log('🎨 Authentication status updated:', currentUser.email);
+            } else {
+                console.log('❌ No authentication - resetting status bar');
+                
+                // Reset status bar styling
+                authStatus.classList.remove('authenticated');
+                authDetails.classList.remove('authenticated');
+                
+                // Reset text content
+                authDetails.textContent = 'Not logged in';
+                
+                // Hide logout button
+                authActions.style.display = 'none';
+            }
+        }
+
+        function getAuthHeaders() {
+            return currentToken ? { 'Authorization': `Bearer ${currentToken}` } : {};
+        }
+
+        function setButtonLoading(button, loading) {
+            if (loading) {
+                button.disabled = true;
+                button.classList.add('loading');
+            } else {
+                button.disabled = false;
+                button.classList.remove('loading');
+            }
+        }
+
+        // API Request Handler
+        async function makeRequest(method, url, data = null, requiresAuth = false, button = null) {
+            console.group(`🌐 API Request: ${method} ${url}`);
+            console.log('📤 Request Details:', {
+                method,
+                url,
+                data,
+                requiresAuth,
+                timestamp: new Date().toISOString()
+            });
+
+            if (button) setButtonLoading(button, true);
+
+            try {
+                const headers = {
+                    'Content-Type': 'application/json',
+                    ...(requiresAuth ? getAuthHeaders() : {})
+                };
+
+                console.log('🔐 Headers:', headers);
+                console.log('📦 Payload:', data || 'No payload');
+
+                const config = { method, headers };
+                if (data) config.body = JSON.stringify(data);
+
+                console.log('⚙️ Fetch Config:', config);
+                console.time(`⏱️ Request Duration`);
+
+                const response = await fetch(url, config);
+                
+                console.timeEnd(`⏱️ Request Duration`);
+                console.log('📥 Response Status:', response.status, response.statusText);
+                console.log('📋 Response Headers:', Object.fromEntries(response.headers.entries()));
+
+                const responseData = await response.json();
+                console.log('📄 Response Data:', responseData);
+                
+                displayResponse(method, url, response.status, responseData);
+                console.groupEnd();
+                return { response, data: responseData };
+            } catch (error) {
+                console.error('❌ Request Error:', error);
+                console.log('🔍 Error Details:', {
+                    name: error.name,
+                    message: error.message,
+                    stack: error.stack
+                });
+                displayResponse(method, url, 0, { error: 'Network Error' }, error.message);
+                console.groupEnd();
+                return { response: null, data: null, error };
+            } finally {
+                if (button) setButtonLoading(button, false);
+            }
+        }
+
+        // Service Health Checks
+        async function checkServiceHealth() {
+            console.group('💗 Service Health Check');
+            console.log('⏰ Health check started at:', new Date().toISOString());
+            
+            const services = [
+                { id: 'userStatus', name: 'UserMS', url: `${CONFIG.USER_API}/health` },
+                { id: 'customerStatus', name: 'CustomerMS', url: `${CONFIG.CUSTOMER_API}/health` },
+                { id: 'inventoryStatus', name: 'InventoryMS', url: `${CONFIG.INVENTORY_API}/health` },
+                { id: 'deliveryStatus', name: 'DeliveryMS', url: `${CONFIG.DELIVERY_API}/health` },
+                { id: 'orderStatus', name: 'OrderMS', url: `${CONFIG.ORDER_API}/health` }
+            ];
+
+            console.log('🔍 Checking services:', services.map(s => s.name));
+
+            for (const service of services) {
+                console.log(`🏥 Checking ${service.name}...`);
+                const statusEl = document.getElementById(service.id);
+                try {
+                    const response = await fetch(service.url);
+                    console.log(`📊 ${service.name} Status:`, response.status, response.statusText);
+                    
+                    if (response.ok) {
+                        statusEl.className = 'service-status online';
+                        statusEl.children[1].textContent = '🟢 Online';
+                        console.log(`✅ ${service.name} is healthy`);
+                    } else {
+                        throw new Error(`HTTP ${response.status}: Service unavailable`);
+                    }
+                } catch (error) {
+                    console.error(`❌ ${service.name} health check failed:`, error.message);
+                    statusEl.className = 'service-status offline';
+                    statusEl.children[1].textContent = '🔴 Offline';
+                }
+            }
+            
+            console.log('🏁 Health check completed');
+            console.groupEnd();
+        }
+
+        // UserMS Functions
+        async function testUserHealth() {
+            await makeRequest('GET', `${CONFIG.USER_API}/health`);
+        }
+
+        async function registerUser() {
+            const data = {
+                email: document.getElementById('regEmail').value,
+                password: document.getElementById('regPassword').value,
+                role: document.getElementById('regRole').value
+            };
+            
+            await makeRequest('POST', `${CONFIG.USER_API}/auth/register`, data);
+        }
+
+        async function loginUser() {
+            console.group('🔐 User Login');
+            
+            const button = event.target;
+            const data = {
+                email: document.getElementById('loginEmail').value,
+                password: document.getElementById('loginPassword').value
+            };
+            
+            console.log('👤 Login attempt for:', data.email);
+            console.log('🔒 Password length:', data.password.length);
+            
+            const result = await makeRequest('POST', `${CONFIG.USER_API}/auth/login`, data, false, button);
+            
+            if (result.response?.status === 200 && result.data) {
+                console.log('✅ Login successful!');
+                console.log('🎫 Tokens received:', {
+                    access_token: result.data.access_token ? 'Present' : 'Missing',
+                    refresh_token: result.data.refresh_token ? 'Present' : 'Missing',
+                    session_id: result.data.session_id || 'Missing'
+                });
+                
+                currentToken = result.data.access_token;
+                refreshToken = result.data.refresh_token;
+                sessionId = result.data.session_id;
+                currentUser = result.data.user;
+                
+                console.log('💾 Session data saved:', {
+                    currentToken: currentToken ? 'Set' : 'Not set',
+                    currentUser: currentUser
+                });
+                
+                updateSessionDisplay();
+                console.log('🎉 Login process completed successfully');
+            } else {
+                console.error('❌ Login failed');
+                console.log('📊 Response status:', result.response?.status);
+                console.log('📄 Response data:', result.data);
+            }
+            
+            console.groupEnd();
+        }
+
+        async function getUserProfile() {
+            await makeRequest('GET', `${CONFIG.USER_API}/auth/profile`, null, true);
+        }
+
+        async function validateToken() {
+            await makeRequest('POST', `${CONFIG.USER_API}/auth/validate`, {}, true);
+        }
+
+        async function listUsers() {
+            await makeRequest('GET', `${CONFIG.USER_API}/auth/users`, null, true);
+        }
+
+        async function logoutUser() {
+            console.group('🚪 User Logout');
+            console.log('👤 Logging out user:', currentUser?.email || 'Unknown');
+            
+            const data = sessionId ? { session_id: sessionId } : {};
+            console.log('📤 Logout request data:', data);
+            
+            const result = await makeRequest('POST', `${CONFIG.USER_API}/auth/logout`, data, true);
+            
+            console.log('🧹 Clearing session data...');
+            currentToken = null;
+            refreshToken = null;
+            sessionId = null;
+            currentUser = null;
+            
+            console.log('🎨 Updating UI displays...');
+            updateSessionDisplay();
+            
+            if (result.response?.status === 200) {
+                console.log('✅ Logout successful');
+            } else {
+                console.log('⚠️ Logout completed (session cleared locally)');
+            }
+            
+            console.groupEnd();
+        }
+
+        // CustomerMS Functions
+        async function testCustomerHealth() {
+            await makeRequest('GET', `${CONFIG.CUSTOMER_API}/health`);
+        }
+
+        async function createCustomer() {
+            if (!currentToken) {
+                alert('⚠️ Please login first to create customers!');
+                return;
+            }
+
+            const data = {
+                customer_contact: document.getElementById('custContact').value,
+                customer_street: document.getElementById('custStreet').value,
+                customer_unit: document.getElementById('custUnit').value,
+                customer_postal_code: document.getElementById('custPostal').value,
+                housing_type: document.getElementById('custHousingType').value,
+                delivery_preferences: {
+                    preferred_time: "morning",
+                    special_instructions: "Call before delivery"
+                },
+                communication_preferences: {
+                    sms: true,
+                    email: false
+                }
+            };
+            
+            await makeRequest('POST', `${CONFIG.CUSTOMER_API}/customers`, data, true);
+        }
+
+        async function searchAllCustomers() {
+            if (!currentToken) {
+                alert('⚠️ Please login first!');
+                return;
+            }
+            await makeRequest('GET', `${CONFIG.CUSTOMER_API}/customers`, null, true);
+        }
+
+        async function searchCustomerById() {
+            if (!currentToken) {
+                alert('⚠️ Please login first!');
+                return;
+            }
+            
+            const customerId = document.getElementById('searchCustomerId').value;
+            if (!customerId) {
+                alert('Please enter a Customer ID');
+                return;
+            }
+            
+            await makeRequest('GET', `${CONFIG.CUSTOMER_API}/customers/${customerId}`, null, true);
+        }
+
+        async function searchCustomerByContact() {
+            if (!currentToken) {
+                alert('⚠️ Please login first!');
+                return;
+            }
+            
+            const contact = document.getElementById('searchContact').value;
+            if (!contact) {
+                alert('Please enter a contact number');
+                return;
+            }
+            
+            await makeRequest('GET', `${CONFIG.CUSTOMER_API}/customers/contact/${encodeURIComponent(contact)}`, null, true);
+        }
+
+        async function validateCustomerData() {
+            if (!currentToken) {
+                alert('⚠️ Please login first!');
+                return;
+            }
+
+            const data = {
+                customer_contact: "+6587654321",
+                customer_postal_code: "560123",
+                housing_type: "HDB"
+            };
+            
+            await makeRequest('POST', `${CONFIG.CUSTOMER_API}/customers/validate`, data, true);
+        }
+
+        // InventoryMS Functions
+        async function testInventoryHealth() {
+            await makeRequest('GET', `${CONFIG.INVENTORY_API}/health`);
+        }
+
+        async function createProduct() {
+            if (!currentToken) {
+                alert('⚠️ Please login first to create products!');
+                return;
+            }
+
+            // Get dimension values from form
+            const width = parseFloat(document.getElementById('prodWidth').value) || 0;
+            const depth = parseFloat(document.getElementById('prodDepth').value) || 0;
+            const height = parseFloat(document.getElementById('prodHeight').value) || 0;
+            const legHeight = parseFloat(document.getElementById('prodLegHeight').value) || 0;
+            const additionalInfo = document.getElementById('prodAdditionalInfo').value.trim();
+
+            // Build dimension object matching sponsor's format
+            const dimensions = {
+                width: width,
+                depth: depth,
+                height: height,
+                unit: "cm",
+                raw_description: `W${width} x D${depth} x H${height}cm${additionalInfo ? ` ${additionalInfo}` : ''}${legHeight > 0 ? ` (Legs H${legHeight}cm)` : ''}`
+            };
+
+            // Add leg height if provided
+            if (legHeight > 0) {
+                dimensions.leg_height = legHeight;
+            }
+
+            // Add additional info if provided
+            if (additionalInfo) {
+                dimensions.additional_info = additionalInfo;
+            }
+
+            const data = {
+                sku: document.getElementById('prodSKU').value,
+                item_name: document.getElementById('prodName').value,
+                category: document.getElementById('prodCategory').value,
+                description: document.getElementById('prodDescription').value,
+                unit_price: parseFloat(document.getElementById('prodPrice').value),
+                weight_per_unit: parseFloat(document.getElementById('prodWeight').value),
+                delivery_type: document.getElementById('prodDeliveryType').value,
+                volume_per_unit: 0.8,
+                special_handling_required: document.getElementById('prodDeliveryType').value !== 'standard',
+                assembly_required: false,
+                showroom_item: false,
+                dimensions: dimensions
+            };
+            
+            await makeRequest('POST', `${CONFIG.INVENTORY_API}/inventory/products`, data, true);
+        }
+
+        async function searchAllProducts() {
+            if (!currentToken) {
+                alert('⚠️ Please login first!');
+                return;
+            }
+            await makeRequest('GET', `${CONFIG.INVENTORY_API}/inventory/products`, null, true);
+        }
+
+        async function searchProductBySKU() {
+            if (!currentToken) {
+                alert('⚠️ Please login first!');
+                return;
+            }
+
+            const sku = document.getElementById('searchSKU').value;
+            if (!sku) {
+                alert('Please enter a Product SKU');
+                return;
+            }
+
+            // URL encode the SKU to handle special characters like '/'
+            const encodedSKU = encodeURIComponent(sku);
+            await makeRequest('GET', `${CONFIG.INVENTORY_API}/inventory/products/${encodedSKU}`, null, true);
+        }
+
+        async function searchProductsByCategory() {
+            if (!currentToken) {
+                alert('⚠️ Please login first!');
+                return;
+            }
+            
+            const category = document.getElementById('searchCategory').value;
+            const params = category ? `?category=${encodeURIComponent(category)}` : '';
+            
+            await makeRequest('GET', `${CONFIG.INVENTORY_API}/inventory/products${params}`, null, true);
+        }
+
+        async function getDeliveryTypes() {
+            if (!currentToken) {
+                alert('⚠️ Please login first!');
+                return;
+            }
+            await makeRequest('GET', `${CONFIG.INVENTORY_API}/inventory/delivery-types`, null, true);
+        }
+
+        async function getDeliveryRequirements() {
+            if (!currentToken) {
+                alert('⚠️ Please login first!');
+                return;
+            }
+
+            const data = { skus: ['TEST001', 'HEAVY001'] };
+            await makeRequest('POST', `${CONFIG.INVENTORY_API}/inventory/delivery-requirements`, data, true);
+        }
+
+        // DeliveryMS Functions
+        async function testDeliveryHealth() {
+            await makeRequest('GET', `${CONFIG.DELIVERY_API}/health`);
+        }
+
+        async function optimizeRoute() {
+            if (!currentToken) {
+                alert('⚠️ Please login first!');
+                return;
+            }
+
+            const postalCodes = document.getElementById('routePostalCodes').value;
+            if (!postalCodes) {
+                alert('Please enter postal codes (comma-separated)');
+                return;
+            }
+
+            const postalArray = postalCodes.split(',').map(code => code.trim());
+            const data = { postal_codes: postalArray };
+
+            await makeRequest('POST', `${CONFIG.DELIVERY_API}/delivery/optimize-route`, data, true);
+        }
+
+        async function geocodePostal() {
+            if (!currentToken) {
+                alert('⚠️ Please login first!');
+                return;
+            }
+
+            const postal = document.getElementById('geocodePostal').value;
+            if (!postal) {
+                alert('Please enter a postal code');
+                return;
+            }
+
+            await makeRequest('GET', `${CONFIG.DELIVERY_API}/delivery/geocode/${postal}`, null, true);
+        }
+
+        // OrderMS Functions
+        async function testOrderHealth() {
+            await makeRequest('GET', `${CONFIG.ORDER_API}/health`);
+        }
+
+        async function getUnscheduledOrders() {
+            if (!currentToken) {
+                alert('⚠️ Please login first!');
+                return;
+            }
+            await makeRequest('GET', `${CONFIG.ORDER_API}/orders/unscheduled`, null, true);
+        }
+
+        async function getAllSchedules() {
+            if (!currentToken) {
+                alert('⚠️ Please login first!');
+                return;
+            }
+            await makeRequest('GET', `${CONFIG.ORDER_API}/schedules`, null, true);
+        }
+
+        async function createSchedule() {
+            if (!currentToken) {
+                alert('⚠️ Please login first!');
+                return;
+            }
+
+            const orderIds = document.getElementById('scheduleOrderIds').value;
+            const date = document.getElementById('scheduleDate').value;
+            const driver = document.getElementById('scheduleDriver').value;
+            const team = document.getElementById('scheduleTeam').value;
+
+            if (!orderIds || !date || !driver || !team) {
+                alert('Please fill in all schedule fields');
+                return;
+            }
+
+            const orderIdArray = orderIds.split(',').map(id => id.trim());
+            const data = {
+                order_ids: orderIdArray,
+                delivery_date: date,
+                assigned_driver: driver,
+                assigned_team: team
+            };
+
+            await makeRequest('POST', `${CONFIG.ORDER_API}/schedules`, data, true);
+        }
+
+        async function getScheduleByDate() {
+            if (!currentToken) {
+                alert('⚠️ Please login first!');
+                return;
+            }
+
+            const date = document.getElementById('viewScheduleDate').value;
+            if (!date) {
+                alert('Please enter a date');
+                return;
+            }
+
+            await makeRequest('GET', `${CONFIG.ORDER_API}/schedules/${date}`, null, true);
+        }
+
+        async function getAllOrders() {
+            if (!currentToken) {
+                alert('⚠️ Please login first!');
+                return;
+            }
+
+            const page = document.getElementById('ordersPage').value || '1';
+            const perPage = document.getElementById('ordersPerPage').value || '10';
+
+            await makeRequest('GET', `${CONFIG.ORDER_API}/orders?page=${page}&per_page=${perPage}`, null, true);
+        }
+
+        async function getOrderById() {
+            if (!currentToken) {
+                alert('⚠️ Please login first!');
+                return;
+            }
+
+            const orderId = document.getElementById('orderIdSearch').value;
+            if (!orderId) {
+                alert('Please enter an Order ID');
+                return;
+            }
+
+            await makeRequest('GET', `${CONFIG.ORDER_API}/orders/${orderId}`, null, true);
+        }
+
+        async function markDeliveryComplete() {
+            if (!currentToken) {
+                alert('⚠️ Please login first!');
+                return;
+            }
+
+            const orderId = document.getElementById('completeOrderId').value;
+            const notes = document.getElementById('deliveryNotes').value || '';
+
+            if (!orderId) {
+                alert('Please enter an Order ID');
+                return;
+            }
+
+            const data = {
+                delivery_notes: notes,
+                delivery_status: 'completed'
+            };
+
+            await makeRequest('PUT', `${CONFIG.ORDER_API}/orders/${orderId}/complete`, data, true);
+        }
+
+        // Utility Functions
+        function clearResponses() {
+            document.getElementById('responseContent').innerHTML = '📡 Response log cleared. Ready for new requests...';
+        }
+
+        // Initialize Dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            updateSessionDisplay();
+            checkServiceHealth();
+            
+            // Recheck service health every 30 seconds
+            setInterval(checkServiceHealth, 30000);
+        });
+    </script>
+</body>
+</html>

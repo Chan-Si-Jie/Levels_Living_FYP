@@ -294,7 +294,7 @@ class OrderOrchestrator:
 
             # Get order data
             order_query = """
-                SELECT o.*, c.customer_contact, c.customer_street, c.customer_unit,
+                SELECT o.*, c.customer_name, c.customer_contact, c.customer_street, c.customer_unit,
                        c.customer_postal_code, c.latitude, c.longitude
                 FROM orders o
                 LEFT JOIN customers c ON o.customer_id = c.customer_id
@@ -397,7 +397,7 @@ def health():
         "timestamp": datetime.now().isoformat()
     })
 
-@app.route('/orders', methods=['POST'])
+@app.route('/create_order', methods=['POST'])
 @auth_required
 def create_order():
     """Create a new order"""
@@ -423,6 +423,52 @@ def create_order():
 
     return jsonify(result), 201
 
+
+@app.route('/orders', methods=['GET'])
+@auth_required
+def list_orders():
+    """List all orders with pagination"""
+    try:
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 10))
+        offset = (page - 1) * per_page
+
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({"error": "Database connection failed"}), 500
+
+        cursor = connection.cursor(dictionary=True)
+
+        query = """
+            SELECT o.*, c.customer_name, c.customer_contact,
+                   COUNT(oi.item_id) as item_count
+            FROM orders o
+            LEFT JOIN customers c ON o.customer_id = c.customer_id
+            LEFT JOIN order_items oi ON o.order_id = oi.order_id
+            GROUP BY o.order_id
+            ORDER BY o.created_at DESC
+            LIMIT %s OFFSET %s
+        """
+        cursor.execute(query, (per_page, offset))
+        orders = cursor.fetchall()
+
+        # Get total count for pagination
+        cursor.execute("SELECT COUNT(*) as total FROM orders")
+        total_count = cursor.fetchone()['total']
+
+        cursor.close()
+        connection.close()
+
+        return jsonify({
+            "page": page,
+            "per_page": per_page,
+            "total": total_count,
+            "orders": orders
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to list orders: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 @app.route('/orders/<order_id>', methods=['GET'])
 @auth_required
 def get_order(order_id):
@@ -458,6 +504,119 @@ def update_order_status(order_id):
         return jsonify({"error": "Failed to update order status"}), 500
 
     return jsonify({"message": "Order status updated successfully"})
+
+@app.route('/orders/<order_id>/order-type', methods=['PATCH'])
+@auth_required
+def update_order_type(order_id):
+    """Update order type (pre_order, asap, adhoc, custom_date)"""
+    data = request.get_json()
+
+    if not data or 'order_type' not in data:
+        return jsonify({"error": "order_type is required"}), 400
+
+    valid_order_types = ['pre_order', 'asap', 'adhoc', 'custom_date']
+
+    if data['order_type'] not in valid_order_types:
+        return jsonify({"error": f"Invalid order_type. Valid types: {valid_order_types}"}), 400
+
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({"error": "Database connection failed"}), 500
+
+        cursor = connection.cursor()
+
+        # Update order_type
+        update_query = """
+            UPDATE orders
+            SET order_type = %s, updated_at = NOW()
+            WHERE order_id = %s
+        """
+        cursor.execute(update_query, (data['order_type'], order_id))
+
+        if cursor.rowcount == 0:
+            cursor.close()
+            connection.close()
+            return jsonify({"error": "Order not found"}), 404
+
+        cursor.close()
+        connection.close()
+
+        return jsonify({
+            "message": "Order type updated successfully",
+            "order_id": order_id,
+            "order_type": data['order_type']
+        })
+
+    except Error as e:
+        logger.error(f"Error updating order type: {e}")
+        return jsonify({"error": "Failed to update order type"}), 500
+
+@app.route('/orders/<order_id>/delivery-preferences', methods=['PATCH'])
+@auth_required
+def update_delivery_preferences(order_id):
+    """Update order remarks and preferred delivery date/time"""
+    data = request.get_json()
+
+    if not data:
+        return jsonify({"error": "Request body is required"}), 400
+
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({"error": "Database connection failed"}), 500
+
+        cursor = connection.cursor()
+
+        # Build dynamic update query based on provided fields
+        update_fields = []
+        params = []
+
+        if 'remarks' in data:
+            update_fields.append("remarks = %s")
+            params.append(data['remarks'])
+
+        if 'preferred_delivery_date' in data:
+            update_fields.append("preferred_delivery_date = %s")
+            params.append(data['preferred_delivery_date'] if data['preferred_delivery_date'] else None)
+
+        if 'preferred_delivery_time' in data:
+            update_fields.append("preferred_delivery_time = %s")
+            params.append(data['preferred_delivery_time'] if data['preferred_delivery_time'] else None)
+
+        if not update_fields:
+            cursor.close()
+            connection.close()
+            return jsonify({"error": "No fields to update"}), 400
+
+        update_fields.append("updated_at = NOW()")
+        params.append(order_id)
+
+        update_query = f"""
+            UPDATE orders
+            SET {', '.join(update_fields)}
+            WHERE order_id = %s
+        """
+        cursor.execute(update_query, params)
+
+        if cursor.rowcount == 0:
+            cursor.close()
+            connection.close()
+            return jsonify({"error": "Order not found"}), 404
+
+        cursor.close()
+        connection.close()
+
+        return jsonify({
+            "success": True,
+            "message": "Delivery preferences updated successfully",
+            "order_id": order_id
+        }), 200
+
+    except Error as e:
+        logger.error(f"Error updating delivery preferences: {e}")
+        return jsonify({"error": "Failed to update delivery preferences"}), 500
+
 
 @app.route('/orders/customer/<customer_id>', methods=['GET'])
 @auth_required
@@ -748,6 +907,93 @@ def create_schedule():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route('/schedules', methods=['GET'])
+@auth_required
+def get_all_schedules():
+    """
+    Get all delivery schedules (overview for HQ Dashboard).
+    Optional query params: ?date=YYYY-MM-DD, ?status=draft/confirmed/in_progress/completed
+    """
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({"error": "Database connection failed"}), 500
+
+        cursor = connection.cursor(dictionary=True)
+
+        # Build query with optional filters
+        date_filter = request.args.get('date')
+        status_filter = request.args.get('status')
+
+        query = """
+            SELECT
+                ds.schedule_id,
+                ds.schedule_date,
+                ds.driver_id,
+                ds.team,
+                ds.total_locations,
+                ds.status,
+                ds.start_time,
+                ds.estimated_end_time,
+                ds.total_distance_meters,
+                ds.total_duration_seconds,
+                ds.created_at,
+                COUNT(so.order_id) as order_count,
+                SUM(CASE WHEN so.status = 'delivered' THEN 1 ELSE 0 END) as delivered_count
+            FROM delivery_schedules ds
+            LEFT JOIN schedule_orders so ON ds.schedule_id = so.schedule_id
+        """
+
+        conditions = []
+        params = []
+
+        if date_filter:
+            conditions.append("ds.schedule_date = %s")
+            params.append(date_filter)
+
+        if status_filter:
+            conditions.append("ds.status = %s")
+            params.append(status_filter)
+
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+
+        query += """
+            GROUP BY ds.schedule_id
+            ORDER BY ds.schedule_date DESC, ds.created_at DESC
+        """
+
+        cursor.execute(query, params)
+        schedules = cursor.fetchall()
+
+        cursor.close()
+        connection.close()
+
+        # Filter out schedules with no orders
+        schedules = [s for s in schedules if s.get('order_count', 0) > 0]
+
+        # Convert datetime/timedelta objects to strings for JSON serialization
+        for schedule in schedules:
+            if schedule.get('schedule_date'):
+                schedule['schedule_date'] = str(schedule['schedule_date'])
+            if schedule.get('start_time'):
+                schedule['start_time'] = str(schedule['start_time'])
+            if schedule.get('estimated_end_time'):
+                schedule['estimated_end_time'] = str(schedule['estimated_end_time'])
+            if schedule.get('created_at'):
+                schedule['created_at'] = schedule['created_at'].isoformat() if hasattr(schedule['created_at'], 'isoformat') else str(schedule['created_at'])
+
+        return jsonify({
+            "success": True,
+            "count": len(schedules),
+            "schedules": schedules
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error fetching schedules: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route('/schedules/<schedule_date>', methods=['GET'])
 @auth_required
 def get_schedule_by_date(schedule_date):
@@ -770,10 +1016,7 @@ def get_schedule_by_date(schedule_date):
         cursor.execute(query, (schedule_date,))
         deliveries = cursor.fetchall()
 
-        cursor.close()
-        connection.close()
-
-        # Group by schedule_id
+        # Group by schedule_id and fetch order items
         schedules = {}
         for delivery in deliveries:
             schedule_id = delivery['schedule_id']
@@ -795,9 +1038,33 @@ def get_schedule_by_date(schedule_date):
                     "deliveries": []
                 }
 
+            # Get order items for this order
+            order_items = []
+            items_cursor = connection.cursor(dictionary=True)
+            items_query = """
+                SELECT item_name, variant, quantity
+                FROM order_items
+                WHERE order_id = %s
+            """
+            items_cursor.execute(items_query, (delivery['order_id'],))
+            items_result = items_cursor.fetchall()
+            items_cursor.close()
+
+            # Format items as "item_name (variant) x quantity"
+            for item in items_result:
+                item_str = item['item_name']
+                if item['variant']:
+                    item_str += f" ({item['variant']})"
+                if item['quantity'] > 1:
+                    item_str += f" x{item['quantity']}"
+                order_items.append(item_str)
+
             schedules[schedule_id]['deliveries'].append({
+                "order_id": delivery['order_id'],
                 "sequence": delivery['sequence_number'],
                 "order_no": delivery['order_no'],
+                "platform_order_id": delivery['order_no'],  # Use order_no as display ID
+                "shopify_order_id": delivery['shopify_order_id'],
                 "order_type": delivery['order_type'],
                 "customer_name": delivery['customer_name'],
                 "customer_contact": delivery['customer_contact'],
@@ -805,6 +1072,7 @@ def get_schedule_by_date(schedule_date):
                 "address": f"{delivery['customer_street']} {delivery['customer_unit']}".strip(),
                 "housing_type": delivery['housing_type'],
                 "total_items": delivery['total_items'],
+                "items": order_items,  # Added items list
                 "estimated_arrival": str(delivery['estimated_arrival_time']) if delivery['estimated_arrival_time'] else None,
                 "actual_arrival": str(delivery['actual_arrival_time']) if delivery['actual_arrival_time'] else None,
                 "status": delivery['delivery_status'],
@@ -812,6 +1080,10 @@ def get_schedule_by_date(schedule_date):
                 "latitude": float(delivery['latitude']) if delivery['latitude'] else None,
                 "longitude": float(delivery['longitude']) if delivery['longitude'] else None
             })
+
+        # Close connection after all queries are done
+        cursor.close()
+        connection.close()
 
         return jsonify({
             "success": True,
@@ -939,6 +1211,115 @@ def delete_schedule(schedule_id):
     except Exception as e:
         logger.error(f"Error deleting schedule: {e}")
         db.rollback()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/orders/<order_id>/unschedule', methods=['PATCH'])
+@auth_required
+def unschedule_order(order_id):
+    """Unschedule a single order (for mockup/testing purposes)"""
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({"error": "Database connection failed"}), 500
+
+        cursor = connection.cursor(dictionary=True)
+
+        # Check if order exists and is scheduled
+        cursor.execute("""
+            SELECT order_id, order_no, is_scheduled, scheduled_delivery_date
+            FROM orders
+            WHERE order_id = %s
+        """, (order_id,))
+        order = cursor.fetchone()
+
+        if not order:
+            cursor.close()
+            connection.close()
+            return jsonify({"error": "Order not found"}), 404
+
+        if not order['is_scheduled']:
+            cursor.close()
+            connection.close()
+            return jsonify({"error": "Order is not scheduled"}), 400
+
+        # Remove from schedule_orders
+        cursor.execute("DELETE FROM schedule_orders WHERE order_id = %s", (order_id,))
+
+        # Reset order scheduling fields
+        cursor.execute("""
+            UPDATE orders
+            SET is_scheduled = 0,
+                scheduled_delivery_date = NULL,
+                scheduled_by = NULL,
+                scheduled_at = NULL,
+                updated_at = NOW()
+            WHERE order_id = %s
+        """, (order_id,))
+
+        cursor.close()
+        connection.close()
+
+        logger.info(f"Order {order_id} ({order['order_no']}) unscheduled")
+
+        return jsonify({
+            "success": True,
+            "message": "Order unscheduled successfully",
+            "order_id": order_id,
+            "order_no": order['order_no']
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error unscheduling order: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/orders/reset-delivered', methods=['POST'])
+@auth_required
+def reset_delivered_orders():
+    """Reset all delivered orders back to ready_for_delivery status (for mockup/testing)"""
+    try:
+        connection = get_db_connection()
+        if not connection:
+            return jsonify({"error": "Database connection failed"}), 500
+
+        cursor = connection.cursor(dictionary=True)
+
+        # Get count of delivered orders
+        cursor.execute("SELECT COUNT(*) as count FROM orders WHERE delivery_completed = 1")
+        result = cursor.fetchone()
+        delivered_count = result['count']
+
+        # Reset delivered orders
+        cursor.execute("""
+            UPDATE orders
+            SET delivery_completed = 0,
+                status = 'ready_for_delivery',
+                updated_at = NOW()
+            WHERE delivery_completed = 1
+        """)
+
+        # Reset schedule_orders status
+        cursor.execute("""
+            UPDATE schedule_orders
+            SET status = 'scheduled',
+                actual_arrival_time = NULL
+            WHERE status = 'delivered'
+        """)
+
+        cursor.close()
+        connection.close()
+
+        logger.info(f"Reset {delivered_count} delivered orders")
+
+        return jsonify({
+            "success": True,
+            "message": f"Reset {delivered_count} delivered orders",
+            "orders_reset": delivered_count
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error resetting delivered orders: {e}")
         return jsonify({"error": str(e)}), 500
 
 
