@@ -1,74 +1,136 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Locate } from "lucide-react"
-import type { DeliveryLocation } from "@/lib/map-data"
+import { useEffect, useRef, useState } from "react";
 
 interface DeliveryMapProps {
-  locations: DeliveryLocation[]
+  locations?: { lat: number; lng: number; address: string; customer: string; sequence: number }[];
+  routePolyline?: string | null;
 }
 
-export function DeliveryMap({ locations }: DeliveryMapProps) {
-  const [mapType, setMapType] = useState<"map" | "satellite">("map")
+export const DeliveryMap: React.FC<DeliveryMapProps> = ({ locations = [], routePolyline = null }) => {
+  const mapRef = useRef<HTMLDivElement>(null);
+  const [map, setMap] = useState<google.maps.Map | null>(null);
+  const [scriptLoaded, setScriptLoaded] = useState(false);
+
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+
+  // Hardcoded start location (warehouse)
+  const warehouseLocation = {
+    lat: 1.375645, // Replace with the actual latitude of 18 Tampines Industrial Crescent
+    lng: 103.929573, // Replace with the actual longitude of 18 Tampines Industrial Crescent
+    address: "18 Tampines Industrial Crescent",
+  };
+
+  // Dynamically load the Google Maps script
+  useEffect(() => {
+    const loadGoogleMapsScript = () => {
+      if (document.getElementById("google-maps-script")) {
+        setScriptLoaded(true);
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.id = "google-maps-script";
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry`;
+      script.async = true;
+      script.defer = true;
+      script.onload = () => setScriptLoaded(true);
+      document.body.appendChild(script);
+    };
+
+    loadGoogleMapsScript();
+  }, []);
+
+  // Initialize the map
+  useEffect(() => {
+    if (!scriptLoaded || !mapRef.current) return;
+
+    const initializeMap = () => {
+      const mapInstance = new google.maps.Map(mapRef.current!, {
+        center: { lat: 1.29, lng: 103.85 }, // Default center: Singapore
+        zoom: 12,
+        mapTypeControl: false,
+        streetViewControl: false,
+      });
+
+      setMap(mapInstance);
+    };
+
+    if (typeof google !== "undefined") {
+      initializeMap();
+    }
+  }, [scriptLoaded]);
+
+  // Add markers and polyline
+  useEffect(() => {
+    if (!map) return;
+
+    const bounds = new google.maps.LatLngBounds();
+
+    // Add warehouse marker
+    const warehouseMarker = new google.maps.Marker({
+      position: { lat: warehouseLocation.lat, lng: warehouseLocation.lng },
+      map,
+      label: "Start", // Label the marker as "Start"
+      title: warehouseLocation.address,
+      icon: {
+        url: "http://maps.google.com/mapfiles/ms/icons/green-dot.png", // Green marker for the warehouse
+      },
+    });
+
+    const warehouseInfoWindow = new google.maps.InfoWindow({
+      content: `<div><strong>Warehouse</strong><br>${warehouseLocation.address}</div>`,
+    });
+
+    warehouseMarker.addListener("click", () => {
+      warehouseInfoWindow.open(map, warehouseMarker);
+    });
+
+    bounds.extend(warehouseMarker.getPosition()!);
+
+    // Add markers for each location
+    locations.forEach((location) => {
+      const marker = new google.maps.Marker({
+        position: { lat: location.lat, lng: location.lng },
+        map,
+        label: location.sequence.toString(), // Display sequence number as marker label
+        title: `${location.customer} - ${location.address}`,
+      });
+
+      const infoWindow = new google.maps.InfoWindow({
+        content: `<div><strong>${location.customer}</strong><br>${location.address}</div>`,
+      });
+
+      marker.addListener("click", () => {
+        infoWindow.open(map, marker);
+      });
+
+      // Extend map bounds to include this location
+      bounds.extend(marker.getPosition()!);
+    });
+
+    // Fit the map to the bounds of all markers
+    map.fitBounds(bounds);
+
+    // Draw the polyline if available
+    if (routePolyline) {
+      const decodedPath = google.maps.geometry.encoding.decodePath(routePolyline); // Decode the polyline
+      const polyline = new google.maps.Polyline({
+        path: decodedPath,
+        geodesic: true,
+        strokeColor: "#FF0000",
+        strokeOpacity: 1.0,
+        strokeWeight: 2,
+      });
+
+      polyline.setMap(map);
+    }
+  }, [map, locations, routePolyline]);
 
   return (
-    <div className="relative h-[calc(100vh-3.5rem-5rem)]">
-      {/* Map Type Toggle */}
-      <div className="absolute left-4 top-4 z-10 flex rounded-lg bg-background shadow-md overflow-hidden border border-border">
-        <button
-          onClick={() => setMapType("map")}
-          className={`px-6 py-2 text-sm font-medium transition-colors ${
-            mapType === "map" ? "bg-background text-foreground" : "bg-muted text-muted-foreground"
-          }`}
-        >
-          Map
-        </button>
-        <button
-          onClick={() => setMapType("satellite")}
-          className={`px-6 py-2 text-sm font-medium transition-colors ${
-            mapType === "satellite" ? "bg-background text-foreground" : "bg-muted text-muted-foreground"
-          }`}
-        >
-          Satellite
-        </button>
-      </div>
-
-      {/* Map Container */}
-      <div className="h-full w-full bg-muted">
-        <iframe
-          src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d255281.19036!2d103.704!3d1.3521!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31da11238a8b9375%3A0x887869cf52abf5c4!2sSingapore!5e0!3m2!1sen!2s!4v1234567890"
-          width="100%"
-          height="100%"
-          style={{ border: 0 }}
-          allowFullScreen
-          loading="lazy"
-          referrerPolicy="no-referrer-when-downgrade"
-          title="Delivery locations map"
-        />
-      </div>
-
-      {/* Recenter Button */}
-      <Button size="icon" variant="secondary" className="absolute bottom-6 left-6 h-12 w-12 rounded-lg shadow-lg">
-        <Locate className="h-5 w-5" />
-      </Button>
-
-      {/* User Location Button */}
-      <Button size="icon" variant="secondary" className="absolute bottom-24 left-6 h-12 w-12 rounded-lg shadow-lg">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="h-6 w-6"
-        >
-          <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
-          <circle cx="12" cy="10" r="3" />
-        </svg>
-      </Button>
+    <div style={{ width: "100%", height: "100vh" }}>
+      {!scriptLoaded && <p>Loading Google Maps...</p>}
+      <div ref={mapRef} style={{ width: "100%", height: "100%" }} />
     </div>
-  )
-}
+  );
+};

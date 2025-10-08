@@ -310,3 +310,7 @@ export const orderService = {
     return apiClient.delete(API_CONFIG.ENDPOINTS.ORDERS.DELETE_SCHEDULE(scheduleId))
   },
 }
+
+export const hasError = (response: any): boolean => {
+  return response?.error !== undefined;
+};

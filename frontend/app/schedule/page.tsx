@@ -259,6 +259,7 @@ export default function SchedulePage() {
       setTimeout(() => {
         fetchUnscheduledOrders()
       }, 1000)
+      router.push("/overview");
     }
 
     setCreating(false)
@@ -350,9 +351,6 @@ export default function SchedulePage() {
             </Button>
           </div>
 
-          <div className="text-xs text-muted-foreground bg-yellow-50 p-2 rounded">
-            ℹ Orders sorted by priority (ASAP → Adhoc → Pre-order) then by postal code
-          </div>
 
           <div className="flex items-center justify-between pt-2 border-t">
             <span className="text-sm text-muted-foreground">Total Deliveries</span>

@@ -1,9 +1,8 @@
 {
-  "/_not-found/page": "app/_not-found/page.js",
-  "/schedule/page": "app/schedule/page.js",
-  "/login/page": "app/login/page.js",
+  "/overview/page": "app/overview/page.js",
+  "/delivery/page": "app/delivery/page.js",
   "/hq-dashboard/page": "app/hq-dashboard/page.js",
   "/delivery/[id]/page": "app/delivery/[id]/page.js",
-  "/overview/page": "app/overview/page.js",
-  "/pack/page": "app/pack/page.js"
+  "/schedule/page": "app/schedule/page.js",
+  "/login/page": "app/login/page.js"
 }
