@@ -241,7 +241,7 @@ CREATE TABLE `delivery_schedules` (
   `start_time` time DEFAULT '09:00:00' COMMENT 'Delivery start time',
   `estimated_end_time` time DEFAULT NULL COMMENT 'Estimated completion time',
   `actual_end_time` time DEFAULT NULL COMMENT 'Actual completion time',
-  `route_polyline` text COMMENT 'Google Maps polyline for route visualization',
+  `route_polyline` longtext COMMENT 'Google Maps polyline for route visualization',
   `total_distance_meters` int DEFAULT NULL COMMENT 'Total route distance',
   `total_duration_seconds` int DEFAULT NULL COMMENT 'Total route duration',
   `notes` text,
@@ -426,7 +426,7 @@ CREATE TABLE `orders` (
   `platform_order_id` varchar(50) DEFAULT NULL,
   `customer_id` varchar(36) NOT NULL,
   `status` enum('received','validated','processing','in_assembly','ready_for_delivery','out_for_delivery','delivered','failed','cancelled','returned') DEFAULT 'received',
-  `order_type` enum('pre_order','asap','adhoc','custom_date') DEFAULT 'pre_order' COMMENT 'Order type selected by HQ from Shopify order remarks',
+  `order_type` enum('pre_order','asap','adhoc','custom') DEFAULT 'pre_order',
   `preferred_delivery_date` date DEFAULT NULL COMMENT 'Customer preferred delivery date (for custom_date type)',
   `preferred_delivery_time` varchar(50) DEFAULT NULL COMMENT 'Customer preferred delivery time slot from remarks',
   `is_scheduled` tinyint(1) DEFAULT '0' COMMENT 'Whether order has been scheduled by HQ (0=No, 1=Yes)',
@@ -832,7 +832,7 @@ SET character_set_client = @saved_cs_client;
 /*!50001 SET collation_connection      = latin1_swedish_ci */;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
 /*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
-/*!50001 VIEW `v_unscheduled_orders` AS select `o`.`order_id` AS `order_id`,`o`.`order_no` AS `order_no`,`o`.`shopify_order_id` AS `shopify_order_id`,`o`.`order_type` AS `order_type`,`o`.`preferred_delivery_date` AS `preferred_delivery_date`,`o`.`preferred_delivery_time` AS `preferred_delivery_time`,`o`.`status` AS `order_status`,`o`.`order_date` AS `order_date`,`o`.`order_value` AS `order_value`,`o`.`note` AS `order_remarks`,`o`.`remarks` AS `remarks`,`c`.`customer_id` AS `customer_id`,`c`.`customer_name` AS `customer_name`,`c`.`customer_contact` AS `customer_contact`,`c`.`customer_postal_code` AS `customer_postal_code`,`c`.`customer_street` AS `customer_street`,`c`.`customer_unit` AS `customer_unit`,`c`.`housing_type` AS `housing_type`,`c`.`latitude` AS `latitude`,`c`.`longitude` AS `longitude`,count(`oi`.`item_id`) AS `total_items`,sum((case when (`i`.`assembly_required` = 1) then 1 else 0 end)) AS `items_requiring_assembly`,`o`.`created_at` AS `created_at`,`o`.`updated_at` AS `updated_at` from (((`orders` `o` join `customers` `c` on((`o`.`customer_id` = `c`.`customer_id`))) left join `order_items` `oi` on((`o`.`order_id` = `oi`.`order_id`))) left join `inventory` `i` on((`oi`.`sku` = `i`.`sku`))) where ((`o`.`is_scheduled` = 0) and (`o`.`delivery_completed` = 0) and (`o`.`status` in ('validated','processing','ready_for_delivery'))) group by `o`.`order_id`,`o`.`order_no`,`o`.`shopify_order_id`,`o`.`order_type`,`o`.`preferred_delivery_date`,`o`.`preferred_delivery_time`,`o`.`status`,`o`.`order_date`,`o`.`order_value`,`o`.`note`,`o`.`remarks`,`c`.`customer_id`,`c`.`customer_name`,`c`.`customer_contact`,`c`.`customer_postal_code`,`c`.`customer_street`,`c`.`customer_unit`,`c`.`housing_type`,`c`.`latitude`,`c`.`longitude`,`o`.`created_at`,`o`.`updated_at` order by (case `o`.`order_type` when 'asap' then 1 when 'adhoc' then 2 when 'pre_order' then 3 when 'custom_date' then 4 else 5 end),`o`.`order_date` */;
+/*!50001 VIEW `v_unscheduled_orders` AS select `o`.`order_id` AS `order_id`,`o`.`order_no` AS `order_no`,`o`.`shopify_order_id` AS `shopify_order_id`,`o`.`order_type` AS `order_type`,`o`.`preferred_delivery_date` AS `preferred_delivery_date`,`o`.`preferred_delivery_time` AS `preferred_delivery_time`,`o`.`status` AS `order_status`,`o`.`order_date` AS `order_date`,`o`.`order_value` AS `order_value`,`o`.`note` AS `order_remarks`,`o`.`remarks` AS `remarks`,`c`.`customer_id` AS `customer_id`,`c`.`customer_name` AS `customer_name`,`c`.`customer_contact` AS `customer_contact`,`c`.`customer_postal_code` AS `customer_postal_code`,`c`.`customer_street` AS `customer_street`,`c`.`customer_unit` AS `customer_unit`,`c`.`housing_type` AS `housing_type`,`c`.`latitude` AS `latitude`,`c`.`longitude` AS `longitude`,count(`oi`.`item_id`) AS `total_items`,sum((case when (`i`.`assembly_required` = 1) then 1 else 0 end)) AS `items_requiring_assembly`,`o`.`created_at` AS `created_at`,`o`.`updated_at` AS `updated_at` from (((`orders` `o` join `customers` `c` on((`o`.`customer_id` = `c`.`customer_id`))) left join `order_items` `oi` on((`o`.`order_id` = `oi`.`order_id`))) left join `inventory` `i` on((`oi`.`sku` = `i`.`sku`))) where ((`o`.`is_scheduled` = 0) and (`o`.`delivery_completed` = 0) and (`o`.`status` in ('validated','processing','ready_for_delivery'))) group by `o`.`order_id`,`o`.`order_no`,`o`.`shopify_order_id`,`o`.`order_type`,`o`.`preferred_delivery_date`,`o`.`preferred_delivery_time`,`o`.`status`,`o`.`order_date`,`o`.`order_value`,`o`.`note`,`o`.`remarks`,`c`.`customer_id`,`c`.`customer_name`,`c`.`customer_contact`,`c`.`customer_postal_code`,`c`.`customer_street`,`c`.`customer_unit`,`c`.`housing_type`,`c`.`latitude`,`c`.`longitude`,`o`.`created_at`,`o`.`updated_at` order by (case `o`.`order_type` when 'asap' then 1 when 'adhoc' then 2 when 'pre_order' then 3 when 'custom' then 4 else 5 end),`o`.`order_date` */;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
 /*!50001 SET collation_connection      = @saved_col_connection */;
@@ -846,4 +846,4 @@ SET character_set_client = @saved_cs_client;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-10-08 10:55:24
+-- Dump completed on 2025-10-08 13:44:39
