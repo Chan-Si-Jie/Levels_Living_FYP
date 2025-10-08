@@ -38,7 +38,7 @@ export interface Order {
 export interface UnscheduledOrder {
   order_id: string
   order_no: string
-  order_type: 'asap' | 'adhoc' | 'pre_order' | 'custom_date'
+  order_type: 'asap' | 'adhoc' | 'pre_order' | 'custom'
   customer_name: string
   customer_postal_code: string
   customer_street: string
@@ -52,6 +52,7 @@ export interface UnscheduledOrder {
   order_remarks?: string  // Shopify order notes
   remarks?: string  // Internal HQ remarks
   priority_score: number
+  items?: OrderItem[]  // Order items with details
 }
 
 export interface CreateScheduleRequest {
@@ -149,11 +150,11 @@ export const orderService = {
   },
 
   /**
-   * Update order type (pre_order, asap, adhoc, custom_date)
+   * Update order type (pre_order, asap, adhoc, custom)
    */
   async updateOrderType(
     orderId: string,
-    orderType: 'pre_order' | 'asap' | 'adhoc' | 'custom_date'
+    orderType: 'pre_order' | 'asap' | 'adhoc' | 'custom'
   ): Promise<ApiResponse<{ message: string; order_id: string; order_type: string }>> {
     return apiClient.patch(API_CONFIG.ENDPOINTS.ORDERS.UPDATE_ORDER_TYPE(orderId), { order_type: orderType })
   },

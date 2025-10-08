@@ -63,6 +63,7 @@ font-weight: 100 900;
     --color-purple-700: oklch(49.6% 0.265 301.924);
     --color-purple-800: oklch(43.8% 0.218 303.724);
     --color-gray-100: oklch(96.7% 0.003 264.542);
+    --color-gray-300: oklch(87.2% 0.01 258.338);
     --color-gray-700: oklch(37.3% 0.034 259.733);
     --color-black: #000;
     --color-white: #fff;
@@ -983,6 +984,9 @@ font-weight: 100 900;
   .justify-end {
     justify-content: flex-end;
   }
+  .justify-start {
+    justify-content: flex-start;
+  }
   .justify-items-start {
     justify-items: start;
   }
@@ -1006,6 +1010,13 @@ font-weight: 100 900;
   }
   .gap-6 {
     gap: calc(var(--spacing) * 6);
+  }
+  .space-y-0\.5 {
+    :where(& > :not(:last-child)) {
+      --tw-space-y-reverse: 0;
+      margin-block-start: calc(calc(var(--spacing) * 0.5) * var(--tw-space-y-reverse));
+      margin-block-end: calc(calc(var(--spacing) * 0.5) * calc(1 - var(--tw-space-y-reverse)));
+    }
   }
   .space-y-1 {
     :where(& > :not(:last-child)) {
@@ -1167,6 +1178,10 @@ font-weight: 100 900;
     border-left-style: var(--tw-border-style);
     border-left-width: 1px;
   }
+  .border-l-2 {
+    border-left-style: var(--tw-border-style);
+    border-left-width: 2px;
+  }
   .border-dashed {
     --tw-border-style: dashed;
     border-style: dashed;
@@ -1189,8 +1204,14 @@ font-weight: 100 900;
   .border-destructive {
     border-color: var(--destructive);
   }
+  .border-gray-300 {
+    border-color: var(--color-gray-300);
+  }
   .border-input {
     border-color: var(--input);
+  }
+  .border-muted {
+    border-color: var(--muted);
   }
   .border-primary {
     border-color: var(--primary);
@@ -1227,6 +1248,9 @@ font-weight: 100 900;
   }
   .bg-blue-100 {
     background-color: var(--color-blue-100);
+  }
+  .bg-blue-600 {
+    background-color: var(--color-blue-600);
   }
   .bg-border {
     background-color: var(--border);
@@ -2281,6 +2305,13 @@ font-weight: 100 900;
     &:hover {
       @media (hover: hover) {
         background-color: var(--color-amber-600);
+      }
+    }
+  }
+  .hover\:bg-blue-700 {
+    &:hover {
+      @media (hover: hover) {
+        background-color: var(--color-blue-700);
       }
     }
   }

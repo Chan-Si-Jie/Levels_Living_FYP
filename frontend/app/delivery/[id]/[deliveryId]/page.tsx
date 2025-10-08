@@ -12,46 +12,45 @@ import { toast } from "sonner"
 import { Loader2 } from "lucide-react"
 import { authStorage } from "@/lib/auth-storage"
 
-export default function DeliveryDetailsPage({
-  params,
-}: {
-  params: { id: string; deliveryId: string }
-}) {
-  const [delivery, setDelivery] = useState<any>(null)
-  const [loading, setLoading] = useState(false)
-  const [notFoundState, setNotFoundState] = useState(false)
-  const [userRole, setUserRole] = useState<string>("")
-
-  useEffect(() => {
-    // Get user role
-    const user = authStorage.getUserData()
-    if (user?.role) {
-      setUserRole(user.role)
-    }
-
-    fetchDeliveryDetails()
-  }, [])
+export default function DeliveryDetailsPage({ params }: { params: { id: string; deliveryId: string } }) {
+  const [delivery, setDelivery] = useState<any>(null);
+  const [loading, setLoading] = useState(true);            // start true
+  const [notFoundState, setNotFoundState] = useState(false);
+  const [userRole, setUserRole] = useState<string>("");
+  const [tried, setTried] = useState(false);               // track first fetch attempt
 
   const fetchDeliveryDetails = async () => {
-    const loadingTimeout = setTimeout(() => setLoading(true), 200)
+    try {
+      setLoading(true);
+      const response = await orderService.getOrderById(params.deliveryId);
 
-    // Fetch order details by order_id
-    const response = await orderService.getOrderById(params.deliveryId)
-    clearTimeout(loadingTimeout)
+      if (hasError(response)) {
+        toast.error(response.error.error || "Failed to load delivery details");
+        setNotFoundState(true);
+        return;
+      }
 
-    if (hasError(response)) {
-      toast.error(response.error.error || "Failed to load delivery details")
-      setNotFoundState(true)
-      setLoading(false)
-      return
+      if (response.data?.order) {
+        setDelivery(response.data);
+        setNotFoundState(false);
+      } else {
+        setNotFoundState(true);
+      }
+    } finally {
+      setTried(true);
+      setLoading(false);
     }
+  };
 
-    if (response.data && response.data.order) {
-      setDelivery(response.data)
-    } else {
-      setNotFoundState(true)
-    }
-    setLoading(false)
+  useEffect(() => {
+    const user = authStorage.getUserData();
+    if (user?.role) setUserRole(user.role);
+    fetchDeliveryDetails();
+    // re-run if route param changes
+  }, [params.deliveryId]);
+
+  if (tried && !loading && (notFoundState || !delivery)) {
+    notFound();
   }
 
   const handleMarkAsComplete = async () => {
@@ -108,9 +107,15 @@ export default function DeliveryDetailsPage({
     )
   }
 
-  if (notFoundState || !delivery) {
-    notFound()
-  }
+if (notFoundState) {
+  console.log("NotFound triggered due to notFoundState");
+  notFound();
+}
+
+if (!delivery && !loading) {
+  console.log("NotFound triggered due to missing delivery data");
+  notFound();
+}
 
   return (
     <div className="min-h-screen bg-background pb-20">

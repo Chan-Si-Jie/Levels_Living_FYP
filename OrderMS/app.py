@@ -508,13 +508,13 @@ def update_order_status(order_id):
 @app.route('/orders/<order_id>/order-type', methods=['PATCH'])
 @auth_required
 def update_order_type(order_id):
-    """Update order type (pre_order, asap, adhoc, custom_date)"""
+    """Update order type (pre_order, asap, adhoc, custom)"""
     data = request.get_json()
 
     if not data or 'order_type' not in data:
         return jsonify({"error": "order_type is required"}), 400
 
-    valid_order_types = ['pre_order', 'asap', 'adhoc', 'custom_date']
+    valid_order_types = ['pre_order', 'asap', 'adhoc', 'custom']
 
     if data['order_type'] not in valid_order_types:
         return jsonify({"error": f"Invalid order_type. Valid types: {valid_order_types}"}), 400
@@ -687,6 +687,7 @@ def get_unscheduled_orders():
     """
     Get all unscheduled orders ready for scheduling.
     Uses v_unscheduled_orders view which auto-sorts by priority.
+    Fetches order items for each order.
     """
     try:
         connection = get_db_connection()
@@ -701,6 +702,23 @@ def get_unscheduled_orders():
         """
         cursor.execute(query)
         orders = cursor.fetchall()
+
+        # Fetch items for each order
+        for order in orders:
+            items_query = """
+                SELECT
+                    oi.item_id,
+                    oi.sku,
+                    oi.item_name,
+                    oi.variant,
+                    oi.quantity,
+                    oi.unit_price,
+                    oi.total_price
+                FROM order_items oi
+                WHERE oi.order_id = %s
+            """
+            cursor.execute(items_query, (order['order_id'],))
+            order['items'] = cursor.fetchall()
 
         cursor.close()
         connection.close()
@@ -756,7 +774,8 @@ def create_schedule():
 
         cursor = connection.cursor(dictionary=True)
 
-        # Step 1: Get order details with customer info, sorted by priority and postal code
+        # Step 1: Get order details with customer info, sorted by postal code only
+        # Order type priority is only for selecting which orders to schedule, NOT for sequence
         placeholders = ','.join(['%s'] * len(order_ids))
         query = f"""
             SELECT
@@ -770,19 +789,12 @@ def create_schedule():
                 c.latitude,
                 c.longitude,
                 c.customer_street,
-                c.customer_unit,
-                CASE o.order_type
-                    WHEN 'asap' THEN 1
-                    WHEN 'adhoc' THEN 2
-                    WHEN 'pre_order' THEN 3
-                    WHEN 'custom_date' THEN 4
-                    ELSE 5
-                END as type_priority
+                c.customer_unit
             FROM orders o
             INNER JOIN customers c ON o.customer_id = c.customer_id
             WHERE o.order_id IN ({placeholders})
             AND o.is_scheduled = 0
-            ORDER BY type_priority ASC, c.customer_postal_code ASC
+            ORDER BY c.customer_postal_code ASC
         """
 
         cursor.execute(query, order_ids)
@@ -1050,13 +1062,11 @@ def get_schedule_by_date(schedule_date):
             items_result = items_cursor.fetchall()
             items_cursor.close()
 
-            # Format items as "item_name (variant) x quantity"
+            # Format items as "quantity x item_name (variant)"
             for item in items_result:
-                item_str = item['item_name']
+                item_str = f"{item['quantity']}x {item['item_name']}"
                 if item['variant']:
                     item_str += f" ({item['variant']})"
-                if item['quantity'] > 1:
-                    item_str += f" x{item['quantity']}"
                 order_items.append(item_str)
 
             schedules[schedule_id]['deliveries'].append({
@@ -1243,8 +1253,23 @@ def unschedule_order(order_id):
             connection.close()
             return jsonify({"error": "Order is not scheduled"}), 400
 
+        # Get the schedule_id before removing the order
+        cursor.execute("SELECT schedule_id FROM schedule_orders WHERE order_id = %s", (order_id,))
+        schedule_result = cursor.fetchone()
+        schedule_id = schedule_result['schedule_id'] if schedule_result else None
+
         # Remove from schedule_orders
         cursor.execute("DELETE FROM schedule_orders WHERE order_id = %s", (order_id,))
+
+        # Check if this was the last order in the schedule
+        if schedule_id:
+            cursor.execute("SELECT COUNT(*) as count FROM schedule_orders WHERE schedule_id = %s", (schedule_id,))
+            count_result = cursor.fetchone()
+
+            if count_result['count'] == 0:
+                # No more orders in this schedule, delete the delivery_schedule
+                cursor.execute("DELETE FROM delivery_schedules WHERE schedule_id = %s", (schedule_id,))
+                logger.info(f"Deleted empty schedule {schedule_id}")
 
         # Reset order scheduling fields
         cursor.execute("""

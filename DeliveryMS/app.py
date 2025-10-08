@@ -229,7 +229,7 @@ def optimize_route():
         route = compute_route(warehouse, warehouse, converted_stops)
 
         # Calculate estimated arrival times (assuming 30 min per stop + travel time)
-        start_time = "09:00:00"  # default start time
+        start_time = "10:00:00"  # default start time
         duration_str = route.get("duration", "0s")
         total_duration_seconds = int(duration_str.replace("s", ""))
 

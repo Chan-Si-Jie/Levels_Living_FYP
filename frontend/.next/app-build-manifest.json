@@ -36,11 +36,6 @@
       "static/chunks/main-app.js",
       "static/chunks/app/delivery/[id]/page.js"
     ],
-    "/overview/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/overview/page.js"
-    ],
     "/delivery/[id]/[deliveryId]/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
@@ -61,10 +56,10 @@
       "static/chunks/main-app.js",
       "static/chunks/app/inventory/page.js"
     ],
-    "/inventory/[id]/page": [
+    "/overview/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/inventory/[id]/page.js"
+      "static/chunks/app/overview/page.js"
     ]
   }
 }

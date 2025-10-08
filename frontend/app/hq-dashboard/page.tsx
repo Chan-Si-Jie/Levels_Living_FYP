@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { MobileHeader } from "@/components/mobile-header"
 import { MobileNav } from "@/components/mobile-nav"
 import { Button } from "@/components/ui/button"
@@ -8,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { orderService } from "@/lib/api/order-service"
 import { hasError } from "@/lib/api-client"
 import { toast } from "sonner"
-import { Loader2, BarChart3, RotateCcw, Trash2 } from "lucide-react"
+import { Loader2, BarChart3, RotateCcw, Trash2, Package, MapPin, ArrowRight } from "lucide-react"
 
 interface Delivery {
   order_id: string
@@ -21,9 +22,14 @@ interface Delivery {
   sequence: number
   schedule_date: string
   order_type: string
+  total_items?: number
+  items?: string[]
+  housing_type?: string
+  postal_code?: string
 }
 
 export default function HQDashboard() {
+  const router = useRouter()
   const [deliveries, setDeliveries] = useState<Delivery[]>([])
   const [loading, setLoading] = useState(false)
   const [selectedDelivery, setSelectedDelivery] = useState<Delivery | null>(null)
@@ -188,7 +194,11 @@ export default function HQDashboard() {
           customer_contact: delivery.customer_contact,
           sequence: delivery.sequence,
           schedule_date: date,
-          order_type: delivery.order_type || 'pre_order'
+          order_type: delivery.order_type || 'pre_order',
+          total_items: delivery.total_items,
+          items: delivery.items || [],
+          housing_type: delivery.housing_type,
+          postal_code: delivery.postal_code
         }))
       )
       setDeliveries(allDeliveries)
@@ -363,31 +373,68 @@ export default function HQDashboard() {
                       className="flex-1 cursor-pointer"
                       onClick={() => setSelectedDelivery(delivery)}
                     >
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <p className="font-semibold">{delivery.order_no}</p>
-                          <p className="text-sm text-muted-foreground">{delivery.customer_name}</p>
+                      <div className="space-y-2 mb-2">
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold text-black">{delivery.order_no}</span>
+                            {delivery.housing_type && (
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">
+                                {delivery.housing_type}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex gap-2">
+                            <span className={`text-xs px-2 py-1 rounded-full ${
+                              delivery.order_type === 'asap' ? 'bg-red-100 text-red-800' :
+                              delivery.order_type === 'adhoc' ? 'bg-orange-100 text-orange-800' :
+                              delivery.order_type === 'pre_order' ? 'bg-blue-100 text-blue-800' :
+                              'bg-purple-100 text-purple-800'
+                            }`}>
+                              {delivery.order_type.toUpperCase().replace('_', ' ')}
+                            </span>
+                            <span className={`text-xs px-2 py-1 rounded-full ${
+                              delivery.status === 'delivered' ? 'bg-green-100 text-green-800' :
+                              delivery.status === 'scheduled' ? 'bg-orange-100 text-orange-800' :
+                              'bg-blue-100 text-blue-800'
+                            }`}>
+                              {delivery.status.toUpperCase()}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex gap-2">
-                          <span className={`text-xs px-2 py-1 rounded-full ${
-                            delivery.order_type === 'asap' ? 'bg-red-100 text-red-800' :
-                            delivery.order_type === 'adhoc' ? 'bg-orange-100 text-orange-800' :
-                            delivery.order_type === 'pre_order' ? 'bg-blue-100 text-blue-800' :
-                            'bg-purple-100 text-purple-800'
-                          }`}>
-                            {delivery.order_type.toUpperCase().replace('_', ' ')}
-                          </span>
-                          <span className={`text-xs px-2 py-1 rounded-full ${
-                            delivery.status === 'delivered' ? 'bg-green-100 text-green-800' :
-                            delivery.status === 'scheduled' ? 'bg-orange-100 text-orange-800' :
-                            'bg-blue-100 text-blue-800'
-                          }`}>
-                            {delivery.status.toUpperCase()}
-                          </span>
-                        </div>
+                        <p className="text-sm font-medium text-black whitespace-nowrap">{delivery.customer_name}</p>
                       </div>
-                      <p className="text-sm text-muted-foreground mb-1">{delivery.address}</p>
-                      <p className="text-xs text-muted-foreground">Seq: {delivery.sequence} • {delivery.scheduled_time}</p>
+
+                      <div className="space-y-2 text-sm mt-2">
+                        <div className="flex items-start gap-2">
+                          <MapPin className="h-4 w-4 text-black mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-black">{delivery.address}</p>
+                            {delivery.postal_code && (
+                              <p className="text-black text-xs">Singapore {delivery.postal_code}</p>
+                            )}
+                          </div>
+                        </div>
+
+                        {delivery.total_items && (
+                          <div className="flex items-start gap-2">
+                            <Package className="h-4 w-4 text-black mt-0.5 flex-shrink-0" />
+                            <div className="text-xs w-full">
+                              <p className="font-medium text-black">{delivery.total_items} items</p>
+                              {delivery.items && delivery.items.length > 0 && (
+                                <div className="mt-1 space-y-0.5 pl-2 border-l-2 border-gray-300">
+                                  {delivery.items.map((item: string, idx: number) => (
+                                    <div key={idx} className="text-xs text-black">
+                                      {item}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        <p className="text-xs text-black">Seq: {delivery.sequence} • {delivery.scheduled_time}</p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -400,7 +447,7 @@ export default function HQDashboard() {
         {selectedDelivery && (
           <div className="bg-card border-2 border-primary rounded-lg p-4">
             <h3 className="text-lg font-bold mb-3">Delivery Details</h3>
-            <div className="space-y-2 text-sm">
+            <div className="space-y-2 text-sm mb-4">
               <p><strong>Order ID:</strong> {selectedDelivery.order_no}</p>
               <p><strong>Customer:</strong> {selectedDelivery.customer_name}</p>
               <p><strong>Phone:</strong> {selectedDelivery.customer_contact}</p>
@@ -408,9 +455,18 @@ export default function HQDashboard() {
               <p><strong>Address:</strong> {selectedDelivery.address}</p>
               <p><strong>Scheduled Time:</strong> {selectedDelivery.scheduled_time}</p>
               <p><strong>Sequence:</strong> #{selectedDelivery.sequence}</p>
+            </div>
+            <div className="space-y-2">
+              <button
+                onClick={() => router.push(`/delivery/${selectedDate}/${selectedDelivery.order_id}`)}
+                className="w-full bg-blue-600 text-white hover:bg-blue-700 font-semibold py-3 px-4 rounded-lg flex items-center justify-center gap-2"
+              >
+                View Delivery Details
+                <ArrowRight className="h-4 w-4" />
+              </button>
               <button
                 onClick={() => setSelectedDelivery(null)}
-                className="mt-4 w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90"
+                className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90"
               >
                 Close
               </button>

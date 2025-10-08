@@ -307,7 +307,7 @@ export default function SchedulePage() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            {/* <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label htmlFor="driver-id">Driver ID (Optional)</Label>
                 <Input
@@ -329,7 +329,7 @@ export default function SchedulePage() {
                   className="h-10"
                 />
               </div>
-            </div>
+            </div> */}
           </div>
 
           <div className="flex gap-2">
@@ -353,10 +353,16 @@ export default function SchedulePage() {
           <div className="text-xs text-muted-foreground bg-yellow-50 p-2 rounded">
             ℹ Orders sorted by priority (ASAP → Adhoc → Pre-order) then by postal code
           </div>
+
+          <div className="flex items-center justify-between pt-2 border-t">
+            <span className="text-sm text-muted-foreground">Total Deliveries</span>
+            <span className="text-lg font-semibold text-primary">{filteredDeliveries.length}</span>
+          </div>
+
         </Card>
 
         {/* Filter Section */}
-        <Card className="p-4 space-y-4">
+        {/* <Card className="p-4 space-y-4">
           <div className="space-y-2">
             <Label htmlFor="postal-code" className="text-sm font-medium">
               Postal Code
@@ -387,8 +393,7 @@ export default function SchedulePage() {
             <span className="text-sm text-muted-foreground">Total Deliveries</span>
             <span className="text-lg font-semibold text-primary">{filteredDeliveries.length}</span>
           </div>
-        </Card>
-
+        </Card> */}
         <div className="space-y-4">
           <h2 className="text-lg font-semibold px-1">Unscheduled Orders</h2>
 
@@ -448,81 +453,91 @@ export default function SchedulePage() {
 
                       <div className="flex-1 space-y-3">
                         <div className="flex items-start justify-between gap-2">
-                          <div className="space-y-1 flex-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-sm font-semibold">{delivery.order_no}</span>
-
-                              {/* Order Type Selector */}
-                              <Select
-                                value={delivery.order_type}
-                                onValueChange={(value: 'pre_order' | 'asap' | 'adhoc' | 'custom_date') =>
-                                  handleOrderTypeChange(delivery.order_id, value)
-                                }
-                              >
-                                <SelectTrigger
-                                  className={`w-[110px] h-6 text-xs px-2 py-0 border-0 ${
-                                    delivery.order_type === "asap"
-                                      ? "bg-red-100 text-red-700"
-                                      : delivery.order_type === "adhoc"
-                                        ? "bg-orange-100 text-orange-700"
-                                        : delivery.order_type === "custom_date"
-                                          ? "bg-purple-100 text-purple-700"
-                                          : "bg-blue-100 text-blue-700"
-                                  }`}
-                                >
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="asap" className="text-xs">
-                                    <span className="font-semibold text-red-700">ASAP</span>
-                                  </SelectItem>
-                                  <SelectItem value="adhoc" className="text-xs">
-                                    <span className="font-semibold text-orange-700">ADHOC</span>
-                                  </SelectItem>
-                                  <SelectItem value="pre_order" className="text-xs">
-                                    <span className="font-semibold text-blue-700">PRE ORDER</span>
-                                  </SelectItem>
-                                  <SelectItem value="custom_date" className="text-xs">
-                                    <span className="font-semibold text-purple-700">CUSTOM DATE</span>
-                                  </SelectItem>
-                                </SelectContent>
-                              </Select>
-
-                              <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">
-                                {delivery.housing_type}
-                              </span>
-                            </div>
-                            <p className="text-sm font-medium">{delivery.customer_name}</p>
+                          <div className="flex items-center gap-2 flex-wrap flex-1">
+                            <span className="text-sm font-semibold text-black">{delivery.order_no}</span>
+                            <span className="text-sm font-medium text-black">{delivery.customer_name}</span>
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-700">
+                              {delivery.housing_type}
+                            </span>
                           </div>
+
+                          {/* Order Type Selector - Moved to Top Right */}
+                          <Select
+                            value={delivery.order_type}
+                            onValueChange={(value: 'pre_order' | 'asap' | 'adhoc' | 'custom') =>
+                              handleOrderTypeChange(delivery.order_id, value)
+                            }
+                          >
+                            <SelectTrigger
+                              className={`w-[110px] h-6 text-xs px-2 py-0 border-0 ${
+                                delivery.order_type === "asap"
+                                  ? "bg-red-100 text-red-700"
+                                  : delivery.order_type === "adhoc"
+                                    ? "bg-orange-100 text-orange-700"
+                                    : delivery.order_type === "custom"
+                                      ? "bg-purple-100 text-purple-700"
+                                      : "bg-blue-100 text-blue-700"
+                              }`}
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="asap" className="text-xs">
+                                <span className="font-semibold text-red-700">ASAP</span>
+                              </SelectItem>
+                              <SelectItem value="adhoc" className="text-xs">
+                                <span className="font-semibold text-orange-700">ADHOC</span>
+                              </SelectItem>
+                              <SelectItem value="pre_order" className="text-xs">
+                                <span className="font-semibold text-blue-700">PRE ORDER</span>
+                              </SelectItem>
+                              <SelectItem value="custom" className="text-xs">
+                                <span className="font-semibold text-purple-700">CUSTOM</span>
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
 
                         <div className="space-y-2 text-sm">
                           <div className="flex items-start gap-2">
-                            <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                            <MapPin className="h-4 w-4 text-black mt-0.5 flex-shrink-0" />
                             <div>
-                              <p className="text-foreground">{delivery.customer_street}</p>
-                              <p className="text-muted-foreground">
+                              <p className="text-black">{delivery.customer_street}</p>
+                              <p className="text-black">
                                 {delivery.customer_unit}, Singapore {delivery.customer_postal_code}
                               </p>
                             </div>
                           </div>
 
                           <div className="flex items-start gap-2">
-                            <Package className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                            <div className="text-xs">
-                              <p className="font-medium">{delivery.total_items} items</p>
+                            <Package className="h-4 w-4 text-black mt-0.5 flex-shrink-0" />
+                            <div className="text-xs w-full">
+                              <p className="font-medium text-black">{delivery.total_items} items</p>
                               {Number(delivery.total_value || delivery.order_value || 0) > 0 && (
-                                <p className="text-muted-foreground">
+                                <p className="text-black">
                                   Value: ${Number(delivery.total_value || delivery.order_value).toFixed(2)}
                                 </p>
+                              )}
+                              {delivery.items && delivery.items.length > 0 && (
+                                <div className="mt-2 space-y-1 pl-2 border-l-2 border-gray-300">
+                                  {delivery.items.map((item: any, idx: number) => (
+                                    <div key={item.item_id || idx} className="text-xs text-black">
+                                      <span className="font-medium text-black">{item.quantity}x</span> {item.item_name}
+                                      {item.variant && <span className="text-black"> ({item.variant})</span>}
+                                      {item.unit_price && (
+                                        <span className="text-black"> - ${Number(item.unit_price).toFixed(2)}</span>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
                               )}
                             </div>
                           </div>
 
                           {(delivery.preferred_delivery_date || delivery.preferred_delivery_time) && (
                             <div className="flex items-center gap-2">
-                              <Calendar className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                              <p className="text-muted-foreground text-xs">
+                              <Calendar className="h-4 w-4 text-black flex-shrink-0" />
+                              <p className="text-black text-xs">
                                 Preferred: {delivery.preferred_delivery_date && new Date(delivery.preferred_delivery_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}{delivery.preferred_delivery_date && delivery.preferred_delivery_time && ', '}{delivery.preferred_delivery_time}
                               </p>
                             </div>
@@ -530,8 +545,8 @@ export default function SchedulePage() {
 
                           {delivery.remarks && (
                             <div className="flex items-start gap-2">
-                              <Package className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                              <p className="text-muted-foreground text-xs">
+                              <Package className="h-4 w-4 text-black mt-0.5 flex-shrink-0" />
+                              <p className="text-black text-xs">
                                 <span className="font-medium">Remarks:</span> {delivery.remarks}
                               </p>
                             </div>

@@ -712,8 +712,153 @@ Number(value || 0).toFixed(2)
 
 ---
 
-**Last Updated:** January 7, 2025
+**Last Updated:** October 8, 2025
 **Status:** ✅ Scheduling, delivery workflow, and role-based access control fully functional
+
+---
+
+## 📝 Recent Updates (October 8, 2025)
+
+### Database Changes
+1. **Order Type Enum Update:**
+   - Changed `custom_date` → `custom` in orders table enum
+   - Updated `v_unscheduled_orders` view to use `custom` instead of `custom_date`
+   - Updated all backend validation to accept `custom` type
+
+2. **Route Polyline Storage:**
+   - Changed `route_polyline` column from TEXT → LONGTEXT (4GB max)
+   - Fixed "Data too long" error for 18-location schedules
+   - Polyline now stored successfully for complex routes
+
+3. **Auto-Delete Empty Schedules:**
+   - When all orders are unscheduled from a date, the `delivery_schedules` record is automatically deleted
+   - Prevents orphaned schedule records in database
+
+### Backend Changes (OrderMS)
+1. **Scheduling Sequence Logic:**
+   - **Removed order type priority from delivery sequence**
+   - Orders now sorted ONLY by postal code for route optimization
+   - Order type priority remains for `v_unscheduled_orders` view (helps HQ select orders)
+   - Sequence is: Postal Code (ASC) → Google Routes API optimization
+
+2. **Unscheduling Logic:**
+   - Added auto-delete for empty schedules
+   - When last order is unscheduled, `delivery_schedules` record is deleted
+   - Logs: "Deleted empty schedule {schedule_id}"
+
+3. **Order Items Display:**
+   - `/orders/unscheduled` now includes order items array
+   - Items formatted as: `{quantity}x {item_name} ({variant})`
+   - Example: `2x Sofa Bed (Grey)`
+
+### Backend Changes (DeliveryMS)
+1. **Start Time:**
+   - Default start time changed from 09:00:00 → 10:00:00
+   - Applied to all route optimizations
+
+### Frontend Changes
+
+#### 1. **Schedule Page** (`/schedule`)
+- Added calendar icon to preferred delivery date field (removed after testing)
+- Moved order type dropdown to top right corner
+- Changed all text from muted gray → black
+- Display items with quantity format: `2x Item Name (Variant)`
+- Housing type badge moved to same line as order number
+- Customer name on separate line with no-wrap
+
+#### 2. **HQ Dashboard** (`/hq-dashboard`)
+- Ported card layout from schedule page
+- Shows order items with quantities
+- All text changed to black
+- Order number and housing type on first line
+- Customer name on second line (no-wrap)
+- Status badge on right
+- Added "View Delivery Details" button → navigates to `/delivery/{date}/{orderId}`
+- Shows postal code under address
+
+#### 3. **Driver Dashboard** (`/dashboard`)
+- Ported HQ dashboard layout (without order_type badge)
+- Shows order items with quantities
+- All text changed to black
+- Added "View Delivery Details" button → navigates to `/delivery/{date}/{orderId}`
+- Mark as Complete button commented out
+
+#### 4. **TypeScript Interfaces**
+- Updated `UnscheduledOrder` interface: `custom_date` → `custom`
+- Added `items?: OrderItem[]` to delivery interfaces
+- Added `housing_type`, `postal_code`, `total_items` fields
+
+#### 5. **UI/UX Improvements**
+- Toast notifications moved from bottom → top-right
+- Consistent card layouts across all dashboards
+- Icon-based information display (MapPin, Package icons)
+- Items displayed with left border for visual hierarchy
+
+### API Changes
+
+#### Order Type Values
+**Old:**
+- `pre_order`, `asap`, `adhoc`, `custom_date`
+
+**New:**
+- `pre_order`, `asap`, `adhoc`, `custom`
+
+#### Scheduling Endpoint Response
+Now includes:
+```json
+{
+  "schedule_id": "uuid",
+  "route_polyline": "long_encoded_string",  // Stored as LONGTEXT
+  "total_distance_meters": 25000,
+  "total_duration_seconds": 3600,
+  "deliveries": [
+    {
+      "items": ["2x Sofa Bed (Grey)", "1x Coffee Table"],
+      ...
+    }
+  ]
+}
+```
+
+### Migration Scripts
+
+#### Database Migration (Already Applied)
+```sql
+-- 1. Update existing data
+UPDATE orders SET order_type = 'custom' WHERE order_type = 'custom_date';
+
+-- 2. Update enum
+ALTER TABLE orders
+MODIFY COLUMN order_type ENUM('pre_order', 'asap', 'adhoc', 'custom')
+DEFAULT 'pre_order';
+
+-- 3. Increase polyline storage
+ALTER TABLE delivery_schedules
+MODIFY COLUMN route_polyline LONGTEXT;
+
+-- 4. Update view
+DROP VIEW IF EXISTS v_unscheduled_orders;
+CREATE VIEW v_unscheduled_orders AS
+SELECT ... ORDER BY
+  CASE o.order_type
+    WHEN 'asap' THEN 1
+    WHEN 'adhoc' THEN 2
+    WHEN 'pre_order' THEN 3
+    WHEN 'custom' THEN 4
+    ELSE 5
+  END,
+  o.order_date;
+```
+
+### Known Issues Fixed
+1. ✅ "Data too long for column 'route_polyline'" - Fixed with LONGTEXT
+2. ✅ Order type priority affecting delivery sequence - Removed from scheduling logic
+3. ✅ Orphaned schedule records - Auto-delete implemented
+4. ✅ Items not showing in dashboards - Added to all views
+5. ✅ Toast notifications blocking mobile nav - Moved to top
+
+---
+
 **Next Session:**
 - Add signature data persistence to backend
 - Connect Pack pages to backend
