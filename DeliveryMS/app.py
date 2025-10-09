@@ -1,8 +1,12 @@
 import os, uuid, time, requests
 from flask import Flask, request, jsonify, render_template
+from flask_cors import CORS
 from werkzeug.exceptions import HTTPException
 
 app = Flask(__name__)
+# Enable CORS for all routes
+CORS(app, origins=["http://localhost:8000", "http://127.0.0.1:8000", "null"])
+
 
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 ROUTES_URL = "https://routes.googleapis.com/directions/v2:computeRoutes"
