@@ -1,3 +1,5 @@
 .env
 .sql
 .env.local
+.next
+__pycache__
