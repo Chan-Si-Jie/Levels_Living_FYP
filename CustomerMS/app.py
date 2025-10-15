@@ -1,7 +1,6 @@
 # customerMS/app.py
 from flask import Flask, request, jsonify
-from flask_jwt_extended import JWTManager, jwt_required, get_jwt_identity, get_jwt, verify_jwt_in_request
-from flask import current_app
+from flask_jwt_extended import JWTManager, jwt_required, get_jwt_identity, get_jwt
 from flask_cors import CORS
 import mysql.connector
 from mysql.connector import Error
@@ -153,25 +152,14 @@ def role_required(allowed_roles):
         @wraps(f)
         @jwt_required()
         def decorated_function(*args, **kwargs):
-            # Always enforce JWT and role checks here
-            verify_jwt_in_request()
             claims = get_jwt()
-
-            # Support either 'role' or 'roles' claim
-            user_roles = []
-            if isinstance(claims.get('roles'), (list, tuple)):
-                user_roles = claims.get('roles')
-            elif claims.get('role'):
-                user_roles = [claims.get('role')]
-
-            # Deny if none of the allowed roles are present
-            if not any(r in user_roles for r in allowed_roles):
+            user_role = claims.get('role')
+            
+            if user_role not in allowed_roles:
                 return jsonify({"error": "Insufficient permissions"}), 403
-
+            
             return f(*args, **kwargs)
-
         return decorated_function
-
     return decorator
 
 class GeocodeService:
