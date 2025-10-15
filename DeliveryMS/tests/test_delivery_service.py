@@ -155,7 +155,7 @@ def test_update_delivery_status_invalid_status(client, mock_google_api):
     
     assert response.status_code == 422
     data = response.get_json()
-    assert 'Invalid status' in data['error']
+    assert 'invalid status' in data['error'].lower()
 
 
 def test_update_delivery_status_success(client, mock_google_api):
