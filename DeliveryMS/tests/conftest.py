@@ -6,6 +6,11 @@ import os
 # Add parent directory to path to import app module
 sys.path.insert(0, os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
 
+# Set environment variables BEFORE importing app
+os.environ['GOOGLE_API_KEY'] = 'test-api-key'
+os.environ['WAREHOUSE_LAT'] = '1.375645'
+os.environ['WAREHOUSE_LNG'] = '103.929573'
+
 from app import app
 
 
@@ -22,52 +27,49 @@ def client():
 @pytest.fixture
 def mock_google_api(mocker):
     """Mock Google API requests (Routes API and Geocoding API)"""
-    # Mock the requests.post for Routes API
-    mock_routes_response = mocker.MagicMock()
-    mock_routes_response.json.return_value = {
-        "routes": [{
-            "distanceMeters": 15000,
-            "duration": "1200s",
-            "polyline": {
-                "encodedPolyline": "test_encoded_polyline_string"
-            },
-            "optimizedIntermediateWaypointIndex": [0, 1, 2]
-        }]
-    }
-    mock_routes_response.raise_for_status.return_value = None
     
-    # Mock the requests.get for Geocoding API
-    mock_geocode_response = mocker.MagicMock()
-    mock_geocode_response.json.return_value = {
-        "status": "OK",
-        "results": [{
-            "geometry": {
-                "location": {
-                    "lat": 1.3521,
-                    "lng": 103.8198
-                }
-            },
-            "formatted_address": "123 Test Street, Singapore 123456",
-            "place_id": "test_place_id"
-        }]
-    }
-    mock_geocode_response.raise_for_status.return_value = None
+    # Mock Routes API response
+    def mock_routes_post(*args, **kwargs):
+        mock_response = mocker.MagicMock()
+        mock_response.json.return_value = {
+            "routes": [{
+                "distanceMeters": 15000,
+                "duration": "1200s",
+                "polyline": {
+                    "encodedPolyline": "test_encoded_polyline_string"
+                },
+                "optimizedIntermediateWaypointIndex": [0, 1, 2]
+            }]
+        }
+        mock_response.raise_for_status.return_value = None
+        return mock_response
     
-    # Use side_effect to return different responses based on the request type
-    def request_side_effect(method, url, *args, **kwargs):
-        if "routes.googleapis.com" in url:
-            return mock_routes_response
-        elif "geocode" in url:
-            return mock_geocode_response
-        return mocker.MagicMock()
+    # Mock Geocoding API response
+    def mock_geocode_get(*args, **kwargs):
+        mock_response = mocker.MagicMock()
+        mock_response.json.return_value = {
+            "status": "OK",
+            "results": [{
+                "geometry": {
+                    "location": {
+                        "lat": 1.3521,
+                        "lng": 103.8198
+                    }
+                },
+                "formatted_address": "123 Test Street, Singapore 123456",
+                "place_id": "test_place_id"
+            }]
+        }
+        mock_response.raise_for_status.return_value = None
+        return mock_response
     
-    mocker.patch('requests.request', side_effect=request_side_effect)
-    mocker.patch('requests.post', return_value=mock_routes_response)
-    mocker.patch('requests.get', return_value=mock_geocode_response)
+    # Patch requests at the app module level (where they're imported)
+    mocker.patch('app.requests.post', side_effect=mock_routes_post)
+    mocker.patch('app.requests.get', side_effect=mock_geocode_get)
     
     return {
-        'routes': mock_routes_response,
-        'geocode': mock_geocode_response
+        'routes': mock_routes_post,
+        'geocode': mock_geocode_get
     }
 
 

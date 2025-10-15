@@ -73,7 +73,9 @@ jobs:
         REDIS_HOST: localhost
         REDIS_PORT: 6379
         JWT_SECRET_KEY: test-secret-key
-        ENABLE_GEOCODING: false
+        GOOGLE_API_KEY: test-api-key-for-ci
+        WAREHOUSE_LAT: "1.375645"
+        WAREHOUSE_LNG: "103.929573"
       run: |
         pytest tests/ -v --cov=. --cov-report=xml
 
