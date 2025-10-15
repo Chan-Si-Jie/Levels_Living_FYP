@@ -3,3 +3,4 @@
 .env.local
 .next
 __pycache__
+venv
