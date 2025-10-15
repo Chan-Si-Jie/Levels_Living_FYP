@@ -79,8 +79,10 @@ jobs:
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
+      continue-on-error: true  # Don't fail the workflow if Codecov upload fails
       with:
+        token: ${{ secrets.CODECOV_TOKEN }}  # Add token from repository secrets
         file: ${{ matrix.service }}/coverage.xml
         flags: unittests
         name: ${{ matrix.service }}-coverage
-        fail_ci_if_error: true
+        fail_ci_if_error: false  # Changed to false to prevent CI failure on rate limits
