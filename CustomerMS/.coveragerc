@@ -1,0 +1,16 @@
+[run]
+source = app.py
+omit = 
+    tests/*
+    venv/*
+
+[report]
+exclude_lines =
+    pragma: no cover
+    if __name__ == .__main__.:
+
+show_missing = True
+precision = 2
+
+[html]
+directory = htmlcov
