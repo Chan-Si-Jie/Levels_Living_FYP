@@ -78,10 +78,10 @@ try:
     )
     # Test Redis connection
     redis_client.ping()
-    logger.info("Redis connected successfully")  # pragma: no cover
-except Exception as e:  # pragma: no cover
-    logger.error(f"Redis connection failed: {e}")  # pragma: no cover
-    redis_client = None  # pragma: no cover
+    logger.info("Redis connected successfully")
+except Exception as e:
+    logger.error(f"Redis connection failed: {e}")
+    redis_client = None
 
 class DatabaseManager:
     def __init__(self):
@@ -102,10 +102,10 @@ class DatabaseManager:
                 autocommit=True,
                 connection_timeout=10
             )
-            return connection  # pragma: no cover - Success path tested via mock
-        except Error as e:  # pragma: no cover
-            logger.error(f"Database connection error: {e}")  # pragma: no cover
-            return None  # pragma: no cover
+            return connection
+        except Error as e:
+            logger.error(f"Database connection error: {e}")
+            return None
     
     def execute_query(self, query, params=None, fetch=False):
         connection = self.get_connection()
@@ -197,9 +197,9 @@ class GeocodeService:
             coords = postal_mapping.get(postal_code, postal_mapping['000000'])
             return coords[0], coords[1]  # latitude, longitude
             
-        except Exception as e:  # pragma: no cover
-            logger.error(f"Geocoding error: {e}")  # pragma: no cover
-            return 1.3521, 103.8198  # Default to Singapore center  # pragma: no cover
+        except Exception as e:
+            logger.error(f"Geocoding error: {e}")
+            return 1.3521, 103.8198  # Default to Singapore center
 
 class CustomerService:
     @staticmethod
@@ -491,8 +491,8 @@ def create_customer():
     try:
         data = request.get_json()
         
-        if not data:  # pragma: no cover - Exception caught first
-            return jsonify({"error": "No data provided"}), 400  # pragma: no cover
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
         
         # Validate customer data
         validation_errors = CustomerValidationService.validate_customer_data(data)
@@ -561,8 +561,8 @@ def validate_customer_data():
     try:
         data = request.get_json()
         
-        if not data:  # pragma: no cover - Exception caught first
-            return jsonify({"error": "No data provided"}), 400  # pragma: no cover
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
         
         validation_errors = CustomerValidationService.validate_customer_data(data)
         
