@@ -64,40 +64,40 @@ try:
         socket_timeout=5
     )
     # Test Redis connection
-    redis_client.ping()  # pragma: no cover - tested in integration
-    logger.info("Redis connected successfully")  # pragma: no cover
-except Exception as e:  # pragma: no cover - redis connection error
-    logger.error(f"Redis connection failed: {e}")  # pragma: no cover
-    redis_client = None  # pragma: no cover
+    redis_client.ping()
+    logger.info("Redis connected successfully")
+except Exception as e:
+    logger.error(f"Redis connection failed: {e}")
+    redis_client = None
 
 class DatabaseManager:
-    def __init__(self):  # pragma: no cover - simple initialization
-        self.host = Config.DB_HOST  # pragma: no cover
-        self.database = Config.DB_NAME  # pragma: no cover
-        self.user = Config.DB_USER  # pragma: no cover
-        self.password = Config.DB_PASSWORD  # pragma: no cover
-        self.port = Config.DB_PORT  # pragma: no cover
+    def __init__(self):
+        self.host = Config.DB_HOST
+        self.database = Config.DB_NAME
+        self.user = Config.DB_USER
+        self.password = Config.DB_PASSWORD
+        self.port = Config.DB_PORT
     
     def get_connection(self):
-        try:  # pragma: no cover - DB connection tested in integration
-            connection = mysql.connector.connect(  # pragma: no cover
-                host=self.host,  # pragma: no cover
-                database=self.database,  # pragma: no cover
-                user=self.user,  # pragma: no cover
-                password=self.password,  # pragma: no cover
-                port=self.port,  # pragma: no cover
-                autocommit=True,  # pragma: no cover
-                connection_timeout=10  # pragma: no cover
-            )  # pragma: no cover
-            return connection  # pragma: no cover
-        except Error as e:  # pragma: no cover - database connection error
-            logger.error(f"Database connection error: {e}")  # pragma: no cover
-            return None  # pragma: no cover
+        try:
+            connection = mysql.connector.connect(
+                host=self.host,
+                database=self.database,
+                user=self.user,
+                password=self.password,
+                port=self.port,
+                autocommit=True,
+                connection_timeout=10
+            )
+            return connection
+        except Error as e:
+            logger.error(f"Database connection error: {e}")
+            return None
     
     def execute_query(self, query, params=None, fetch=False):
         connection = self.get_connection()
-        if not connection:  # pragma: no cover - database connection failure
-            return None  # pragma: no cover
+        if not connection:
+            return None
         
         try:
             cursor = connection.cursor(dictionary=True)
@@ -109,45 +109,45 @@ class DatabaseManager:
                 result = cursor.rowcount
             
             return result
-        except Error as e:  # pragma: no cover - query execution error
-            logger.error(f"Query execution error: {e}")  # pragma: no cover
-            return None  # pragma: no cover
-        finally:  # pragma: no cover - connection cleanup
-            if connection.is_connected():  # pragma: no cover
-                cursor.close()  # pragma: no cover
-                connection.close()  # pragma: no cover
+        except Error as e:
+            logger.error(f"Query execution error: {e}")
+            return None
+        finally:
+            if connection.is_connected():
+                cursor.close()
+                connection.close()
 
 db = DatabaseManager()
 
 # JWT token blacklist check
 @jwt.token_in_blocklist_loader
 def check_if_token_revoked(jwt_header, jwt_payload):
-    if not redis_client:  # pragma: no cover - redis not available
-        return False  # pragma: no cover
+    if not redis_client:
+        return False
     
-    try:  # pragma: no cover - jwt operation
-        jti = jwt_payload['jti']  # pragma: no cover - jwt operation
-        token_in_redis = redis_client.get(jti)  # pragma: no cover
-        return token_in_redis is not None  # pragma: no cover
-    except Exception as e:  # pragma: no cover - redis error
-        logger.error(f"Token blacklist check error: {e}")  # pragma: no cover
-        return False  # pragma: no cover
+    try:
+        jti = jwt_payload['jti']
+        token_in_redis = redis_client.get(jti)
+        return token_in_redis is not None
+    except Exception as e:
+        logger.error(f"Token blacklist check error: {e}")
+        return False
 
 def role_required(allowed_roles):
     """Decorator to check user role"""
-    def decorator(f):  # pragma: no cover - decorator definition
-        @wraps(f)  # pragma: no cover
-        @jwt_required()  # pragma: no cover
-        def decorated_function(*args, **kwargs):  # pragma: no cover
-            claims = get_jwt()  # pragma: no cover
-            user_role = claims.get('role')  # pragma: no cover
+    def decorator(f):
+        @wraps(f)
+        @jwt_required()
+        def decorated_function(*args, **kwargs):
+            claims = get_jwt()
+            user_role = claims.get('role')
             
-            if user_role not in allowed_roles:  # pragma: no cover
-                return jsonify({"error": "Insufficient permissions"}), 403  # pragma: no cover
+            if user_role not in allowed_roles:
+                return jsonify({"error": "Insufficient permissions"}), 403
             
-            return f(*args, **kwargs)  # pragma: no cover
-        return decorated_function  # pragma: no cover
-    return decorator  # pragma: no cover
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
 
 class InventoryService:
     @staticmethod
@@ -157,8 +157,8 @@ class InventoryService:
             # Validate required fields
             required_fields = ['sku', 'item_name', 'delivery_type']
             for field in required_fields:
-                if field not in product_data:  # pragma: no cover - field validation
-                    return {"error": f"Missing required field: {field}"}, 400  # pragma: no cover
+                if field not in product_data:
+                    return {"error": f"Missing required field: {field}"}, 400
             
             # Check if SKU already exists
             existing_product = db.execute_query(
@@ -167,8 +167,8 @@ class InventoryService:
                 fetch='one'
             )
             
-            if existing_product:  # pragma: no cover - duplicate SKU
-                return {"error": "SKU already exists"}, 409  # pragma: no cover
+            if existing_product:
+                return {"error": "SKU already exists"}, 409
             
             # Validate delivery type
             valid_delivery_types = [
@@ -177,8 +177,8 @@ class InventoryService:
                 'assembly_required', 'showroom_pickup'
             ]
             
-            if product_data['delivery_type'] not in valid_delivery_types:  # pragma: no cover - delivery type validation
-                return {"error": f"Invalid delivery type. Must be one of: {', '.join(valid_delivery_types)}"}, 400  # pragma: no cover
+            if product_data['delivery_type'] not in valid_delivery_types:
+                return {"error": f"Invalid delivery type. Must be one of: {', '.join(valid_delivery_types)}"}, 400
             
             # Prepare JSON fields
             dimensions = json.dumps(product_data.get('dimensions', {}))
@@ -239,12 +239,12 @@ class InventoryService:
                     "message": "Product created successfully",
                     "product": created_product
                 }, 201
-            else:  # pragma: no cover - database insert failure
-                return {"error": "Failed to create product"}, 500  # pragma: no cover
+            else:
+                return {"error": "Failed to create product"}, 500
                 
-        except Exception as e:  # pragma: no cover - exception handler
-            logger.error(f"Create product error: {e}")  # pragma: no cover
-            return {"error": "Internal server error"}, 500  # pragma: no cover
+        except Exception as e:
+            logger.error(f"Create product error: {e}")
+            return {"error": "Internal server error"}, 500
     
     @staticmethod
     def get_product_by_sku(sku):
@@ -262,9 +262,9 @@ class InventoryService:
             else:
                 return {"error": "Product not found"}, 404
                 
-        except Exception as e:  # pragma: no cover - exception handler
-            logger.error(f"Get product error: {e}")  # pragma: no cover
-            return {"error": "Internal server error"}, 500  # pragma: no cover
+        except Exception as e:
+            logger.error(f"Get product error: {e}")
+            return {"error": "Internal server error"}, 500
     
     @staticmethod
     def update_product(sku, update_data):
@@ -277,8 +277,8 @@ class InventoryService:
                 fetch='one'
             )
             
-            if not existing_product:  # pragma: no cover - product not found in update
-                return {"error": "Product not found"}, 404  # pragma: no cover
+            if not existing_product:
+                return {"error": "Product not found"}, 404
             
             # Build update query dynamically
             update_fields = []
@@ -298,13 +298,13 @@ class InventoryService:
             
             # Handle JSON fields
             json_fields = ['dimensions', 'image_urls', 'product_tags']
-            for field in json_fields:  # pragma: no cover - json field updates
-                if field in update_data:  # pragma: no cover
-                    update_fields.append(f"{field} = %s")  # pragma: no cover
-                    params.append(json.dumps(update_data[field]))  # pragma: no cover
+            for field in json_fields:
+                if field in update_data:
+                    update_fields.append(f"{field} = %s")
+                    params.append(json.dumps(update_data[field]))
             
-            if not update_fields:  # pragma: no cover - no valid update fields
-                return {"error": "No valid fields to update"}, 400  # pragma: no cover
+            if not update_fields:
+                return {"error": "No valid fields to update"}, 400
             
             # Add updated_at and sku for WHERE clause
             update_fields.append("updated_at = NOW()")
@@ -335,19 +335,19 @@ class InventoryService:
                     "message": "Product updated successfully",
                     "product": updated_product
                 }, 200
-            else:  # pragma: no cover - database update failure
-                return {"error": "Failed to update product"}, 500  # pragma: no cover
+            else:
+                return {"error": "Failed to update product"}, 500
                 
-        except Exception as e:  # pragma: no cover - exception handler
-            logger.error(f"Update product error: {e}")  # pragma: no cover
-            return {"error": "Internal server error"}, 500  # pragma: no cover
+        except Exception as e:
+            logger.error(f"Update product error: {e}")
+            return {"error": "Internal server error"}, 500
     
     @staticmethod
     def get_delivery_requirements(skus):
         """Get delivery requirements for multiple SKUs - Primary function for Order MS"""
         try:
-            if not isinstance(skus, list):  # pragma: no cover - invalid type check
-                return {"error": "SKUs must be provided as a list"}, 400  # pragma: no cover
+            if not isinstance(skus, list):
+                return {"error": "SKUs must be provided as a list"}, 400
             
             delivery_requirements = []
             errors = []
@@ -363,9 +363,9 @@ class InventoryService:
                     fetch='one'
                 )
                 
-                if not product:  # pragma: no cover - product not found in requirements
-                    errors.append(f"Product not found: {sku}")  # pragma: no cover
-                    continue  # pragma: no cover
+                if not product:
+                    errors.append(f"Product not found: {sku}")
+                    continue
                 
                 # Calculate delivery complexity
                 complexity_score = InventoryService._calculate_delivery_complexity(product)
@@ -385,17 +385,17 @@ class InventoryService:
                     "estimated_delivery_time": InventoryService._estimate_delivery_time(product)
                 })
             
-            if errors and not delivery_requirements:  # pragma: no cover - all products not found
-                return {"errors": errors}, 400  # pragma: no cover
+            if errors and not delivery_requirements:
+                return {"errors": errors}, 400
             
             return {
                 "delivery_requirements": delivery_requirements,
                 "errors": errors if errors else None
-            }, 200 if not errors else 207  # pragma: no cover - partial errors
+            }, 200 if not errors else 207
             
-        except Exception as e:  # pragma: no cover - exception handler
-            logger.error(f"Get delivery requirements error: {e}")  # pragma: no cover
-            return {"error": "Internal server error"}, 500  # pragma: no cover
+        except Exception as e:
+            logger.error(f"Get delivery requirements error: {e}")
+            return {"error": "Internal server error"}, 500
     
     @staticmethod
     def search_products(filters):
@@ -408,23 +408,23 @@ class InventoryService:
                 where_conditions.append("category = %s")
                 params.append(filters['category'])
             
-            if filters.get('delivery_type'):  # pragma: no cover - delivery type filter
-                where_conditions.append("delivery_type = %s")  # pragma: no cover
-                params.append(filters['delivery_type'])  # pragma: no cover
+            if filters.get('delivery_type'):
+                where_conditions.append("delivery_type = %s")
+                params.append(filters['delivery_type'])
             
-            if filters.get('special_handling'):  # pragma: no cover - special handling filter
-                where_conditions.append("special_handling_required = TRUE")  # pragma: no cover
+            if filters.get('special_handling'):
+                where_conditions.append("special_handling_required = TRUE")
             
-            if filters.get('assembly_required'):  # pragma: no cover - assembly filter
-                where_conditions.append("assembly_required = TRUE")  # pragma: no cover
+            if filters.get('assembly_required'):
+                where_conditions.append("assembly_required = TRUE")
             
-            if filters.get('showroom_items'):  # pragma: no cover - showroom filter
-                where_conditions.append("showroom_item = TRUE")  # pragma: no cover
+            if filters.get('showroom_items'):
+                where_conditions.append("showroom_item = TRUE")
             
-            if filters.get('search_term'):  # pragma: no cover - search term filter
-                where_conditions.append("(item_name LIKE %s OR sku LIKE %s OR variant LIKE %s)")  # pragma: no cover
-                search_term = f"%{filters['search_term']}%"  # pragma: no cover
-                params.extend([search_term, search_term, search_term])  # pragma: no cover
+            if filters.get('search_term'):
+                where_conditions.append("(item_name LIKE %s OR sku LIKE %s OR variant LIKE %s)")
+                search_term = f"%{filters['search_term']}%"
+                params.extend([search_term, search_term, search_term])
             
             # Pagination
             limit = min(int(filters.get('limit', 50)), 100)
@@ -465,9 +465,9 @@ class InventoryService:
                 }
             }, 200
             
-        except Exception as e:  # pragma: no cover - exception handler
-            logger.error(f"Search products error: {e}")  # pragma: no cover
-            return {"error": "Internal server error"}, 500  # pragma: no cover
+        except Exception as e:
+            logger.error(f"Search products error: {e}")
+            return {"error": "Internal server error"}, 500
     
     @staticmethod
     def get_delivery_types():
@@ -532,9 +532,9 @@ class InventoryService:
             
             return {"delivery_types": delivery_types}, 200
             
-        except Exception as e:  # pragma: no cover - exception handler
-            logger.error(f"Get delivery types error: {e}")  # pragma: no cover
-            return {"error": "Internal server error"}, 500  # pragma: no cover
+        except Exception as e:  # pragma: no cover - defensive code, no failure points in try block
+            logger.error(f"Get delivery types error: {e}")
+            return {"error": "Internal server error"}, 500
     
     @staticmethod
     def _parse_json_fields(product):
@@ -555,11 +555,11 @@ class InventoryService:
             else:
                 product['product_tags'] = []
                 
-        except json.JSONDecodeError:  # pragma: no cover - json parsing error
+        except json.JSONDecodeError:
             # Set defaults if JSON parsing fails
-            product['dimensions'] = {}  # pragma: no cover
-            product['image_urls'] = []  # pragma: no cover
-            product['product_tags'] = []  # pragma: no cover
+            product['dimensions'] = {}
+            product['image_urls'] = []
+            product['product_tags'] = []
     
     @staticmethod
     def _calculate_delivery_complexity(product):
@@ -586,23 +586,23 @@ class InventoryService:
             if product.get('special_handling_required'):
                 complexity += 1
             
-            if product.get('assembly_required'):  # pragma: no cover - assembly complexity
-                complexity += 1  # pragma: no cover
+            if product.get('assembly_required'):
+                complexity += 1
             
-            if product.get('showroom_item'):  # pragma: no cover - showroom complexity
-                complexity += 1  # pragma: no cover
+            if product.get('showroom_item'):
+                complexity += 1
             
             # Weight factor
             weight = product.get('weight_per_unit', 0)
-            if weight > 50:  # pragma: no cover - weight complexity
-                complexity += 1  # pragma: no cover
-            elif weight > 100:  # pragma: no cover
-                complexity += 2  # pragma: no cover
+            if weight > 100:
+                complexity += 2
+            elif weight > 50:
+                complexity += 1           
             
             return min(complexity, 5)  # Cap at 5
             
-        except Exception:  # pragma: no cover - delivery complexity calculation error
-            return 1  # pragma: no cover - Default complexity
+        except Exception:
+            return 1
     
     @staticmethod
     def _estimate_delivery_time(product):
@@ -626,17 +626,17 @@ class InventoryService:
             estimated_time = time_map.get(product['delivery_type'], base_time)
             
             # Add time for assembly
-            if product.get('assembly_required'):  # pragma: no cover - assembly time
-                estimated_time += 60  # pragma: no cover
+            if product.get('assembly_required'):
+                estimated_time += 60
             
             # Add time for showroom pickup
-            if product.get('showroom_item'):  # pragma: no cover - showroom time
-                estimated_time += 30  # pragma: no cover
+            if product.get('showroom_item'):
+                estimated_time += 30
             
             return estimated_time
             
-        except Exception:  # pragma: no cover - delivery time calculation error
-            return 120  # pragma: no cover - Default 2 hours
+        except Exception:
+            return 120
 
 # API Routes
 @app.route('/health', methods=['GET'])
@@ -647,13 +647,13 @@ def health_check():
     
     # Check Redis connection
     redis_status = "connected"
-    if redis_client:  # pragma: no cover - redis available
-        try:  # pragma: no cover
-            redis_client.ping()  # pragma: no cover
-        except:  # pragma: no cover - redis ping failure
-            redis_status = "disconnected"  # pragma: no cover
-    else:  # pragma: no cover - redis not available
-        redis_status = "disconnected"  # pragma: no cover
+    if redis_client:
+        try:
+            redis_client.ping()
+        except:
+            redis_status = "disconnected"
+    else:
+        redis_status = "disconnected"
     
     return jsonify({
         "status": "healthy",
@@ -669,15 +669,15 @@ def create_product():
     try:
         data = request.get_json()
         
-        if not data:  # pragma: no cover - no data validation
-            return jsonify({"error": "No data provided"}), 400  # pragma: no cover
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
 
         result, status = InventoryService.create_product(data)
         return jsonify(result), status
         
-    except Exception as e:  # pragma: no cover - endpoint exception handler
-        logger.error(f"Create product endpoint error: {e}")  # pragma: no cover
-        return jsonify({"error": "Internal server error"}), 500  # pragma: no cover
+    except Exception as e:
+        logger.error(f"Create product endpoint error: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 @app.route('/inventory/products/<sku>', methods=['GET'])
 @role_required(['admin', 'driver'])
@@ -687,9 +687,9 @@ def get_product(sku):
         result, status = InventoryService.get_product_by_sku(sku)
         return jsonify(result), status
         
-    except Exception as e:  # pragma: no cover - endpoint exception handler
-        logger.error(f"Get product endpoint error: {e}")  # pragma: no cover
-        return jsonify({"error": "Internal server error"}), 500  # pragma: no cover
+    except Exception as e:
+        logger.error(f"Get product endpoint error: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 @app.route('/inventory/products/<sku>', methods=['PUT'])
 @role_required(['admin'])
@@ -698,15 +698,15 @@ def update_product(sku):
     try:
         data = request.get_json()
         
-        if not data:  # pragma: no cover - no data validation
-            return jsonify({"error": "No update data provided"}), 400  # pragma: no cover
+        if not data:
+            return jsonify({"error": "No update data provided"}), 400
         
         result, status = InventoryService.update_product(sku, data)
         return jsonify(result), status
         
-    except Exception as e:  # pragma: no cover - endpoint exception handler
-        logger.error(f"Update product endpoint error: {e}")  # pragma: no cover
-        return jsonify({"error": "Internal server error"}), 500  # pragma: no cover
+    except Exception as e:
+        logger.error(f"Update product endpoint error: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 @app.route('/inventory/delivery-requirements', methods=['POST'])
 @role_required(['admin'])
@@ -715,15 +715,15 @@ def get_delivery_requirements():
     try:
         data = request.get_json()
         
-        if not data or 'skus' not in data:  # pragma: no cover - no skus validation
-            return jsonify({"error": "No SKUs provided"}), 400  # pragma: no cover
+        if not data or 'skus' not in data:
+            return jsonify({"error": "No SKUs provided"}), 400
         
         result, status = InventoryService.get_delivery_requirements(data['skus'])
         return jsonify(result), status
         
-    except Exception as e:  # pragma: no cover - endpoint exception handler
-        logger.error(f"Get delivery requirements endpoint error: {e}")  # pragma: no cover
-        return jsonify({"error": "Internal server error"}), 500  # pragma: no cover
+    except Exception as e:
+        logger.error(f"Get delivery requirements endpoint error: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 @app.route('/inventory/products', methods=['GET'])
 @role_required(['admin', 'driver'])
 def search_products():
@@ -746,9 +746,9 @@ def search_products():
         result, status = InventoryService.search_products(filters)
         return jsonify(result), status
         
-    except Exception as e:  # pragma: no cover - endpoint exception handler
-        logger.error(f"Search products endpoint error: {e}")  # pragma: no cover
-        return jsonify({"error": "Internal server error"}), 500  # pragma: no cover
+    except Exception as e:
+        logger.error(f"Search products endpoint error: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 @app.route('/inventory/delivery-types', methods=['GET'])
 @role_required(['admin', 'driver'])
@@ -758,9 +758,9 @@ def get_delivery_types():
         result, status = InventoryService.get_delivery_types()
         return jsonify(result), status
         
-    except Exception as e:  # pragma: no cover - endpoint exception handler
-        logger.error(f"Get delivery types endpoint error: {e}")  # pragma: no cover
-        return jsonify({"error": "Internal server error"}), 500  # pragma: no cover
+    except Exception as e:
+        logger.error(f"Get delivery types endpoint error: {e}")
+        return jsonify({"error": "Internal server error"}), 500
 
 if __name__ == '__main__':  # pragma: no cover
     app.run(debug=True, host='0.0.0.0', port=Config.SERVICE_PORT)
