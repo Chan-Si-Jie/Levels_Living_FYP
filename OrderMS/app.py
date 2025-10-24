@@ -1366,7 +1366,12 @@ def not_found(error):
 def internal_error(error):
     return jsonify({"error": "Internal server error"}), 500
 
-if __name__ == "__main__":
+def start_server():
+    """Start the Flask development server."""
     port = int(os.getenv("SERVICE_PORT", 5005))
     debug = os.getenv("FLASK_ENV") == "development"
     app.run(host="0.0.0.0", port=port, debug=debug)
+
+
+if __name__ == "__main__":  # pragma: no cover
+    start_server()  # pragma: no cover
