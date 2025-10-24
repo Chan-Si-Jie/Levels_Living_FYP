@@ -3395,3 +3395,179 @@ def test_start_server_with_defaults(mocker):
     # Verify app.run was called with defaults (port 5005, debug=False)
     mock_run.assert_called_once_with(host="0.0.0.0", port=5005, debug=False)
 
+
+# ============================================
+# BRANCH COVERAGE TESTS (Lines 371, 1038, 1071)
+# ============================================
+
+def test_get_schedule_by_date_with_null_variant(client, mock_db, auth_token):
+    """Test get_schedule_by_date with item that has null variant (line 1071 FALSE branch)"""
+    mock_db.fetchall.side_effect = [
+        # First call: get deliveries from view
+        [{
+            'schedule_id': 'schedule-1',
+            'schedule_date': datetime(2025, 10, 20).date(),
+            'driver_id': 'DRV001',
+            'driver_name': 'Driver A',
+            'driver_contact': '12345678',
+            'team': 'Team A',
+            'total_locations': 1,
+            'max_locations': 18,
+            'remaining_capacity': 17,
+            'schedule_status': 'confirmed',
+            'start_time': None,
+            'estimated_end_time': None,
+            'route_polyline': None,
+            'order_id': 'order-1',
+            'sequence_number': 1,
+            'order_no': 'ORD-001',
+            'shopify_order_id': None,
+            'order_type': 'asap',
+            'customer_name': 'Customer A',
+            'customer_contact': '87654321',
+            'customer_postal_code': '123456',
+            'customer_street': 'Street 1',
+            'customer_unit': '#01-01',
+            'housing_type': 'HDB',
+            'total_items': 1,
+            'estimated_arrival_time': None,
+            'actual_arrival_time': None,
+            'delivery_status': 'scheduled',
+            'requires_warehouse_return': 0,
+            'latitude': 1.3521,
+            'longitude': 103.8198
+        }],
+        # Second call: get order items with NULL variant
+        [
+            {'item_name': 'Product A', 'variant': None, 'quantity': 2}
+        ]
+    ]
+    
+    response = client.get('/schedules/2025-10-20')
+    
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data['success'] is True
+    assert len(data['schedules']) == 1
+    # Verify item format without variant
+    items = data['schedules'][0]['deliveries'][0]['items']
+    assert len(items) == 1
+    assert items[0] == "2x Product A"  # No variant in parentheses
+
+
+def test_get_schedule_by_date_multiple_schedules(client, mock_db, auth_token):
+    """Test get_schedule_by_date with multiple deliveries in same schedule (line 1038 FALSE branch)"""
+    mock_db.fetchall.side_effect = [
+        # First call: get deliveries from view - 2 deliveries in same schedule
+        [
+            {
+                'schedule_id': 'schedule-1',
+                'schedule_date': datetime(2025, 10, 20).date(),
+                'driver_id': 'DRV001',
+                'driver_name': 'Driver A',
+                'driver_contact': '12345678',
+                'team': 'Team A',
+                'total_locations': 2,
+                'max_locations': 18,
+                'remaining_capacity': 16,
+                'schedule_status': 'confirmed',
+                'start_time': None,
+                'estimated_end_time': None,
+                'route_polyline': None,
+                'order_id': 'order-1',
+                'sequence_number': 1,
+                'order_no': 'ORD-001',
+                'shopify_order_id': None,
+                'order_type': 'asap',
+                'customer_name': 'Customer A',
+                'customer_contact': '87654321',
+                'customer_postal_code': '123456',
+                'customer_street': 'Street 1',
+                'customer_unit': '#01-01',
+                'housing_type': 'HDB',
+                'total_items': 1,
+                'estimated_arrival_time': None,
+                'actual_arrival_time': None,
+                'delivery_status': 'scheduled',
+                'requires_warehouse_return': 0,
+                'latitude': 1.3521,
+                'longitude': 103.8198
+            },
+            {
+                'schedule_id': 'schedule-1',  # Same schedule_id - tests FALSE branch
+                'schedule_date': datetime(2025, 10, 20).date(),
+                'driver_id': 'DRV001',
+                'driver_name': 'Driver A',
+                'driver_contact': '12345678',
+                'team': 'Team A',
+                'total_locations': 2,
+                'max_locations': 18,
+                'remaining_capacity': 16,
+                'schedule_status': 'confirmed',
+                'start_time': None,
+                'estimated_end_time': None,
+                'route_polyline': None,
+                'order_id': 'order-2',
+                'sequence_number': 2,
+                'order_no': 'ORD-002',
+                'shopify_order_id': None,
+                'order_type': 'asap',
+                'customer_name': 'Customer B',
+                'customer_contact': '87654322',
+                'customer_postal_code': '123457',
+                'customer_street': 'Street 2',
+                'customer_unit': '#02-02',
+                'housing_type': 'Condo',
+                'total_items': 1,
+                'estimated_arrival_time': None,
+                'actual_arrival_time': None,
+                'delivery_status': 'scheduled',
+                'requires_warehouse_return': 0,
+                'latitude': 1.3522,
+                'longitude': 103.8199
+            }
+        ],
+        # Second call: items for order-1
+        [{'item_name': 'Product A', 'variant': 'Red', 'quantity': 1}],
+        # Third call: items for order-2
+        [{'item_name': 'Product B', 'variant': 'Blue', 'quantity': 1}]
+    ]
+    
+    response = client.get('/schedules/2025-10-20')
+    
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data['success'] is True
+    assert len(data['schedules']) == 1  # One schedule
+    assert len(data['schedules'][0]['deliveries']) == 2  # Two deliveries in same schedule
+
+
+def test_initiate_delivery_with_existing_delivery_response(client, mock_db, auth_token, mocker):
+    """Test initiate_delivery when delivery already exists (line 371 FALSE branch)"""
+    from app import orchestrator
+    
+    # Mock get_order_details to return order with existing delivery
+    mock_order_details = {
+        'order': {
+            'order_id': 'order-1',
+            'order_no': 'ORD-001',
+            'status': 'validated',
+            'latitude': 1.3521,
+            'longitude': 103.8198
+        },
+        'items': [],
+        'delivery': {  # Existing delivery - line 371 should be FALSE
+            'jobId': 'existing-job-123',
+            'status': 'pending'
+        }
+    }
+    
+    mocker.patch.object(orchestrator, 'get_order_details', return_value=mock_order_details)
+    mocker.patch.object(orchestrator, 'update_order_status', return_value=True)
+    
+    response = client.post('/orders/order-1/deliver')
+    
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data['message'] == "Delivery initiated successfully"
+
