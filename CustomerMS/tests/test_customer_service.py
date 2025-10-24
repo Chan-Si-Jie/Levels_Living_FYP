@@ -1627,3 +1627,42 @@ def test_health_check_redis_connected_explicit(client, mock_db, mocker):
         assert data['status'] == 'healthy'
     finally:
         app_module.redis_client = original_redis
+
+
+def test_redis_initialization_exception_at_module_load(mocker):
+    """Test Redis initialization exception handling (lines 82-84)
+    
+    This test covers the except block in the module-level Redis initialization:
+        except Exception as e:
+            logger.error(f"Redis connection failed: {e}")
+            redis_client = None
+    """
+    import sys
+    import importlib
+    
+    # Remove app from sys.modules to force reload
+    if 'app' in sys.modules:
+        del sys.modules['app']
+    
+    # Mock Redis to raise exception during initialization
+    mock_redis_class = mocker.patch('redis.Redis')
+    mock_redis_instance = unittest.mock.Mock()
+    mock_redis_instance.ping.side_effect = Exception("Redis connection failed during init")
+    mock_redis_class.return_value = mock_redis_instance
+    
+    # Also mock the logger to verify it's called
+    mock_logger = mocker.patch('logging.getLogger')
+    mock_logger_instance = unittest.mock.Mock()
+    mock_logger.return_value = mock_logger_instance
+    
+    # Now import app - this will trigger the module-level Redis initialization
+    import app as app_module
+    
+    # Verify that redis_client is None (line 84)
+    assert app_module.redis_client is None
+    
+    # Verify that the error was logged (line 83)
+    # The logger.error should have been called with a message containing "Redis connection failed"
+    error_calls = [call for call in mock_logger_instance.error.call_args_list 
+                   if call and len(call[0]) > 0 and "Redis connection failed" in str(call[0][0])]
+    assert len(error_calls) > 0, "Expected logger.error to be called with 'Redis connection failed' message"
