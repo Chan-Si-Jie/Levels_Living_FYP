@@ -2,6 +2,9 @@ import pytest
 from app import app
 import json
 import os
+import sys
+import types
+import importlib
 
 
 def test_health_check(client):
@@ -540,3 +543,347 @@ def test_jwt_blacklist_redis_exception(client, auth_token, monkeypatch):
         assert response.status_code == 200
     finally:
         app_module.redis_client = original_redis
+
+
+# ==================== Additional Tests for 100% Coverage ====================
+
+def test_redis_initialization_success():
+    """Test Redis initialization success path (line 74)"""
+    import sys
+    import types
+    import importlib
+    
+    # Save originals
+    original_app = sys.modules.get('app')
+    original_redis = sys.modules.get('redis')
+    
+    try:
+        # Create fake redis module that succeeds
+        fake_redis = types.ModuleType('redis')
+        
+        class FakeRedisClient:
+            def __init__(self, *args, **kwargs):
+                pass
+            
+            def ping(self):
+                return True
+        
+        fake_redis.Redis = lambda *args, **kwargs: FakeRedisClient()
+        sys.modules['redis'] = fake_redis
+        
+        # Remove app from cache to force reimport
+        if 'app' in sys.modules:
+            del sys.modules['app']
+        
+        # Reimport app - should hit line 74
+        app_module = importlib.import_module('app')
+        
+        # Verify Redis client was set
+        assert app_module.redis_client is not None
+    
+    finally:
+        # Restore original modules
+        if 'app' in sys.modules:
+            del sys.modules['app']
+        
+        if original_app is not None:
+            sys.modules['app'] = original_app
+        
+        if original_redis is not None:
+            sys.modules['redis'] = original_redis
+        else:
+            sys.modules.pop('redis', None)
+
+
+def test_database_connection_success(monkeypatch):
+    """Test DatabaseManager.get_connection success (line 98)"""
+    from app import DatabaseManager
+    import mysql.connector
+    
+    # Mock successful connection
+    class MockConnection:
+        def is_connected(self):
+            return True
+        def close(self):
+            pass
+    
+    mock_conn = MockConnection()
+    monkeypatch.setattr(mysql.connector, 'connect', lambda **kwargs: mock_conn)
+    
+    db_manager = DatabaseManager()
+    result = db_manager.get_connection()
+    
+    assert result is not None
+    assert result == mock_conn
+
+
+def test_database_execute_query_no_connection(monkeypatch):
+    """Test execute_query when get_connection returns None (line 106)"""
+    from app import DatabaseManager
+    
+    db_manager = DatabaseManager()
+    
+    # Mock get_connection to return None
+    monkeypatch.setattr(db_manager, 'get_connection', lambda: None)
+    
+    result = db_manager.execute_query("SELECT * FROM users")
+    assert result is None
+
+
+def test_database_execute_query_exception(monkeypatch):
+    """Test execute_query exception handling (lines 119-120)"""
+    from app import DatabaseManager
+    import mysql.connector
+    from mysql.connector import Error
+    
+    class MockCursor:
+        def execute(self, query, params):
+            raise Error("Query error")
+        def close(self):
+            pass
+    
+    class MockConnection:
+        def cursor(self, dictionary=True):
+            return MockCursor()
+        def is_connected(self):
+            return True
+        def close(self):
+            pass
+    
+    mock_conn = MockConnection()
+    monkeypatch.setattr(mysql.connector, 'connect', lambda **kwargs: mock_conn)
+    
+    db_manager = DatabaseManager()
+    result = db_manager.execute_query("SELECT * FROM users")
+    
+    assert result is None
+
+
+def test_session_service_create_failure(mock_db):
+    """Test SessionService.create_session when DB insert fails (lines 263)"""
+    from app import SessionService
+    
+    # Mock execute_query to return 0 (no rows affected)
+    mock_db['cursor'].rowcount = 0
+    
+    session_id, status = SessionService.create_session(
+        'user-123',
+        'refresh-token-abc',
+        'Mozilla/5.0',
+        '127.0.0.1'
+    )
+    
+    assert session_id is None
+    assert status == 500
+
+
+def test_session_service_create_exception(mocker):
+    """Test SessionService.create_session exception handling (lines 265-267)"""
+    from app import SessionService
+    import app as app_module
+    
+    # Mock db.execute_query to raise an exception
+    mocker.patch.object(app_module.db, 'execute_query', side_effect=Exception("DB error"))
+    
+    session_id, status = SessionService.create_session(
+        'user-123',
+        'refresh-token-abc',
+        'Mozilla/5.0',
+        '127.0.0.1'
+    )
+    
+    assert session_id is None
+    assert status == 500
+
+
+def test_check_if_token_revoked_with_redis(client, mock_db):
+    """Test check_if_token_revoked function with Redis (lines 272-281)"""
+    import app as app_module
+    from flask_jwt_extended import create_access_token
+    
+    # Mock user
+    mock_db['cursor'].fetchone.side_effect = [
+        {  # authenticate_user
+            'user_id': 'test-user-id',
+            'email': 'test@levels.sg',
+            'password_hash': '$2b$12$test',
+            'role': 'admin',
+            'is_active': True,
+            'login_attempts': 0,
+            'locked_until': None
+        }
+    ]
+    mock_db['cursor'].rowcount = 1
+    
+    # Create a real JWT token
+    with app_module.app.app_context():
+        real_token = create_access_token(identity='test-user-id')
+    
+    # Mock redis_client to return "revoked"
+    class MockRedis:
+        def get(self, key):
+            return "revoked"  # Token is blacklisted
+        def set(self, key, value, ex=None):
+            pass
+    
+    original_redis = app_module.redis_client
+    app_module.redis_client = MockRedis()
+    
+    try:
+        # Try to use a revoked token - should be rejected
+        response = client.post('/auth/validate', headers={'Authorization': f'Bearer {real_token}'})
+        assert response.status_code == 401
+    finally:
+        app_module.redis_client = original_redis
+
+
+def test_check_if_token_revoked_exception_path(client, mock_db):
+    """Test check_if_token_revoked exception handling (lines 279-281)"""
+    import app as app_module
+    from flask_jwt_extended import create_access_token
+    
+    # Create a real JWT token
+    with app_module.app.app_context():
+        real_token = create_access_token(identity='test-user-id')
+    
+    # Mock redis_client to raise exception
+    class MockRedis:
+        def get(self, key):
+            raise Exception("Redis connection error")
+    
+    original_redis = app_module.redis_client
+    app_module.redis_client = MockRedis()
+    
+    try:
+        # Should handle exception and allow token (returns False on exception)
+        # Mock user for the validate endpoint
+        mock_db['cursor'].fetchone.return_value = {
+            'user_id': 'test-user-id',
+            'email': 'test@levels.sg',
+            'role': 'admin',
+            'is_active': True,
+            'last_login': None,
+            'created_at': None
+        }
+        
+        response = client.post('/auth/validate', headers={'Authorization': f'Bearer {real_token}'})
+        # Should succeed because exception returns False (not revoked)
+        assert response.status_code == 200
+    finally:
+        app_module.redis_client = original_redis
+
+
+def test_logout_redis_set_exception(client, auth_token, monkeypatch):
+    """Test logout when Redis.set raises exception (lines 451-453)"""
+    import app as app_module
+    
+    class MockRedis:
+        def set(self, key, value, ex=None):
+            raise Exception("Redis set failed")
+    
+    original_redis = app_module.redis_client
+    app_module.redis_client = MockRedis()
+    
+    try:
+        response = client.post('/auth/logout', headers={'Authorization': f'Bearer {auth_token}'})
+        # Should still succeed despite Redis error
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data['message'] == 'Logout successful'
+    finally:
+        app_module.redis_client = original_redis
+
+
+def test_list_users_db_exception(client, auth_token, mocker, mock_db):
+    """Test list_users when db.execute_query raises exception (lines 487-489)"""
+    import app as app_module
+    
+    # First return user for role check, then raise exception for list_users query
+    mock_db['cursor'].fetchone.return_value = {
+        'user_id': 'test-user-id',
+        'email': 'admin@levels.sg',
+        'role': 'admin',
+        'is_active': True,
+        'last_login': None,
+        'created_at': None
+    }
+    
+    # Mock db.execute_query to succeed first (for role check), then raise exception
+    call_count = {'count': 0}
+    def side_effect_func(*args, **kwargs):
+        call_count['count'] += 1
+        if call_count['count'] == 1:
+            # First call is for role_required decorator - return admin user
+            return {
+                'user_id': 'test-user-id',
+                'email': 'admin@levels.sg',
+                'role': 'admin',
+                'is_active': True,
+                'last_login': None,
+                'created_at': None
+            }
+        else:
+            # Second call is for list_users - raise exception
+            raise Exception("DB error")
+    
+    mocker.patch.object(app_module.db, 'execute_query', side_effect=side_effect_func)
+    
+    response = client.get('/auth/users', headers={'Authorization': f'Bearer {auth_token}'})
+    assert response.status_code == 500
+    data = json.loads(response.data)
+    assert 'Internal server error' in data['error']
+
+
+def test_role_required_decorator_coverage(client, auth_token, mock_db):
+    """Test role_required decorator inner functions"""
+    # This test hits the decorator wrapper and inner function
+    # by calling an endpoint that uses @role_required
+    
+    # Mock user with admin role
+    mock_db['cursor'].fetchone.return_value = {
+        'user_id': 'test-user-id',
+        'email': 'admin@levels.sg',
+        'role': 'admin',
+        'is_active': True,
+        'last_login': None,
+        'created_at': None
+    }
+    
+    # Call list_users which uses @role_required(['admin'])
+    response = client.get('/auth/users', headers={'Authorization': f'Bearer {auth_token}'})
+    assert response.status_code == 200
+
+
+def test_check_if_token_revoked_no_redis_client(mocker):
+    """Test check_if_token_revoked when redis_client is None (line 273)"""
+    import app as app_module
+    
+    # Temporarily set redis_client to None
+    original_redis = app_module.redis_client
+    try:
+        app_module.redis_client = None
+        
+        # Call the function directly
+        result = app_module.check_if_token_revoked(
+            {'typ': 'JWT'},
+            {'jti': 'test-jti-123', 'sub': 'user-id'}
+        )
+        
+        # Should return False when redis_client is None
+        assert result == False
+    finally:
+        # Restore original redis_client
+        app_module.redis_client = original_redis
+
+
+def test_get_profile_get_jwt_identity_exception(client, auth_token, mocker):
+    """Test get_profile exception handler (lines 451-453)"""
+    import app as app_module
+    
+    # Mock get_jwt_identity to raise an exception
+    mocker.patch('app.get_jwt_identity', side_effect=Exception("JWT decode error"))
+    
+    response = client.get('/auth/profile', headers={'Authorization': f'Bearer {auth_token}'})
+    assert response.status_code == 500
+    data = json.loads(response.data)
+    assert 'Internal server error' in data['error']
