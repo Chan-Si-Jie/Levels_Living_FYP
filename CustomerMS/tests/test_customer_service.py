@@ -1548,3 +1548,82 @@ def test_validate_customer_data_with_is_update_true():
     assert len(errors) == 2
     assert any('contact' in err.lower() for err in errors)
     assert any('postal' in err.lower() for err in errors)
+
+
+def test_database_manager_init_explicit():
+    """Test DatabaseManager.__init__ to explicitly cover lines 82-84"""
+    from app import DatabaseManager
+    import os
+    
+    # Create a new instance to cover constructor
+    db_manager = DatabaseManager()
+    
+    # Verify all attributes are set correctly
+    assert db_manager.host == os.getenv('DB_HOST', 'localhost')
+    assert db_manager.database == os.getenv('DB_NAME', 'levels_living_db_new')
+    assert db_manager.user == os.getenv('DB_USER', 'root')
+    assert db_manager.password == os.getenv('DB_PASSWORD', '')
+    assert db_manager.port == int(os.getenv('DB_PORT', 3306))
+
+
+def test_health_check_redis_ping_exception_explicit(client, mock_db, mocker):
+    """Test health check when redis_client.ping() raises exception (lines 474-476)"""
+    import app as app_module
+    
+    class MockRedis:
+        def ping(self):
+            raise Exception("Redis ping failed")
+    
+    original_redis = app_module.redis_client
+    app_module.redis_client = MockRedis()
+    
+    try:
+        response = client.get('/health')
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        # Should handle exception and set redis to disconnected
+        assert data['redis'] == 'disconnected'
+        assert data['status'] == 'healthy'
+    finally:
+        app_module.redis_client = original_redis
+
+
+def test_health_check_redis_client_none_explicit(client, mock_db):
+    """Test health check when redis_client is None (lines 477-478)"""
+    import app as app_module
+    
+    original_redis = app_module.redis_client
+    app_module.redis_client = None
+    
+    try:
+        response = client.get('/health')
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        # When redis_client is None, should show disconnected
+        assert data['redis'] == 'disconnected'
+        assert data['status'] == 'healthy'
+        assert data['service'] == 'customer-service'
+    finally:
+        app_module.redis_client = original_redis
+
+
+def test_health_check_redis_connected_explicit(client, mock_db, mocker):
+    """Test health check when redis_client is connected and ping succeeds (line 472 TRUE branch)"""
+    import app as app_module
+    
+    class MockRedis:
+        def ping(self):
+            return True  # Successful ping
+    
+    original_redis = app_module.redis_client
+    app_module.redis_client = MockRedis()
+    
+    try:
+        response = client.get('/health')
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        # When redis ping succeeds, should show connected
+        assert data['redis'] == 'connected'
+        assert data['status'] == 'healthy'
+    finally:
+        app_module.redis_client = original_redis
