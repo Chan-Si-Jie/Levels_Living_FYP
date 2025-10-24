@@ -954,3 +954,87 @@ def test_database_get_connection_exception(mocker):
     
     # Verify that None is returned after exception
     assert connection is None
+
+
+def test_health_check_redis_ping_exception(client, mock_db, monkeypatch):
+    """Test health check when redis_client.ping() raises exception to cover lines 313-315"""
+    import app as app_module
+    
+    class MockRedis:
+        def ping(self):
+            raise Exception("Redis ping failed")
+    
+    original_redis = app_module.redis_client
+    app_module.redis_client = MockRedis()
+    
+    try:
+        response = client.get('/health')
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        # Should handle exception and set redis to disconnected
+        assert data['redis'] == 'disconnected'
+        assert data['status'] == 'healthy'
+    finally:
+        app_module.redis_client = original_redis
+
+
+def test_health_check_redis_client_none(client, mock_db, monkeypatch):
+    """Test health check when redis_client is None to cover lines 316-317"""
+    import app as app_module
+    
+    original_redis = app_module.redis_client
+    app_module.redis_client = None
+    
+    try:
+        response = client.get('/health')
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        # When redis_client is None, should show disconnected
+        assert data['redis'] == 'disconnected'
+        assert data['status'] == 'healthy'
+    finally:
+        app_module.redis_client = original_redis
+
+
+def test_logout_with_redis_client_none(client, auth_token, monkeypatch):
+    """Test logout when redis_client is None to cover FALSE branch of line 429"""
+    import app as app_module
+    
+    original_redis = app_module.redis_client
+    app_module.redis_client = None
+    
+    try:
+        response = client.post('/auth/logout', headers={'Authorization': f'Bearer {auth_token}'})
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        # Should still succeed even without Redis
+        assert data['message'] == 'Logout successful'
+    finally:
+        app_module.redis_client = original_redis
+
+
+def test_logout_with_redis_client_active(client, auth_token, monkeypatch):
+    """Test logout when redis_client is active to cover TRUE branch of line 429"""
+    import app as app_module
+    
+    class MockRedis:
+        def __init__(self):
+            self.stored = {}
+        
+        def set(self, key, value, ex=None):
+            self.stored[key] = value
+            return True
+    
+    original_redis = app_module.redis_client
+    mock_redis = MockRedis()
+    app_module.redis_client = mock_redis
+    
+    try:
+        response = client.post('/auth/logout', headers={'Authorization': f'Bearer {auth_token}'})
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data['message'] == 'Logout successful'
+        # Verify Redis was called
+        assert len(mock_redis.stored) > 0
+    finally:
+        app_module.redis_client = original_redis

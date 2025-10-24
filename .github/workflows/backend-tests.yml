@@ -80,6 +80,7 @@ jobs:
         pytest tests/ -v --cov=app --cov-branch --cov-report=term-missing --cov-report=xml --cov-report=html
 
     - name: Upload coverage to Codecov
+      if: success()  # Only upload if tests passed
       uses: codecov/codecov-action@v3
       continue-on-error: true  # Don't fail the workflow if Codecov upload fails
       with:
