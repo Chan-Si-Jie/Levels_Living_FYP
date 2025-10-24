@@ -1,14 +1,22 @@
 [run]
-source = app.py
+source = .
 omit = 
     tests/*
     venv/*
     */venv/*
+    conftest.py
+    */conftest.py
 
 [report]
 exclude_lines =
     pragma: no cover
+    def __repr__
     if __name__ == .__main__.:
+    raise AssertionError
+    raise NotImplementedError
 
 show_missing = True
 precision = 2
+
+[html]
+directory = htmlcov

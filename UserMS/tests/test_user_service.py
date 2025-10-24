@@ -887,3 +887,70 @@ def test_get_profile_get_jwt_identity_exception(client, auth_token, mocker):
     assert response.status_code == 500
     data = json.loads(response.data)
     assert 'Internal server error' in data['error']
+
+
+def test_redis_initialization_exception():
+    """Test Redis initialization exception handler (lines 75-77)"""
+    import sys
+    import types
+    import importlib
+    
+    # Save original modules
+    original_app = sys.modules.get('app')
+    original_redis = sys.modules.get('redis')
+    
+    try:
+        # Create a fake redis module that raises an exception
+        fake_redis = types.ModuleType('redis')
+        
+        class FakeRedis:
+            def __init__(self, *args, **kwargs):
+                raise Exception("Redis connection failed")
+        
+        fake_redis.Redis = FakeRedis
+        sys.modules['redis'] = fake_redis
+        
+        # Remove app module to force reimport
+        if 'app' in sys.modules:
+            del sys.modules['app']
+        
+        # Import app - this should trigger the exception handler
+        app_module = importlib.import_module('app')
+        
+        # Verify that redis_client is None after exception
+        assert app_module.redis_client is None
+        
+    finally:
+        # Restore original modules
+        if 'app' in sys.modules:
+            del sys.modules['app']
+        
+        if original_app is not None:
+            sys.modules['app'] = original_app
+        
+        if original_redis is not None:
+            sys.modules['redis'] = original_redis
+        elif 'redis' in sys.modules:
+            del sys.modules['redis']
+
+
+def test_database_get_connection_exception(mocker):
+    """Test DatabaseManager.get_connection exception handler (lines 99-101)"""
+    import app as app_module
+    import mysql.connector
+    
+    # Mock mysql.connector.connect to raise an Error
+    mocker.patch.object(
+        mysql.connector, 
+        'connect', 
+        side_effect=mysql.connector.Error("Database connection failed")
+    )
+    
+    # Create a new DatabaseManager instance
+    db_manager = app_module.DatabaseManager()
+    
+    # Try to get connection - should catch exception and return None
+    connection = db_manager.get_connection()
+    
+    # Verify that None is returned after exception
+    assert connection is None
