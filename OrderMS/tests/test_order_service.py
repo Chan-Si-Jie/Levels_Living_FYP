@@ -3572,11 +3572,60 @@ def test_initiate_delivery_with_existing_delivery_response(client, mock_db, auth
     assert data['message'] == "Delivery initiated successfully"
 
 
-def test_initiate_delivery_service_post_fails(mocker, mock_db):
-    """Test initiate_delivery when delivery_service.post returns None (line 371 TRUE branch)"""
+def test_initiate_delivery_service_post_fails(mocker):
+    """Test initiate_delivery when delivery_service.post returns None (line 371-372 TRUE branch)"""
     from app import orchestrator, delivery_service
     
-    # Mock get_order_details to return order without existing delivery
+    # Mock the database cursor to return order details
+    mock_cursor = mocker.MagicMock()
+    mock_cursor.fetchone.return_value = {
+        'order_id': 'order-1',
+        'order_no': 'ORD-001',
+        'status': 'validated',
+        'latitude': 1.3521,
+        'longitude': 103.8198,
+        'customer_name': 'Test Customer',
+        'customer_contact': '12345678',
+        'customer_street': 'Test Street',
+        'customer_unit': '#01-01',
+        'customer_postal_code': '123456'
+    }
+    mock_cursor.fetchall.return_value = []  # No order items
+    
+    mock_connection = mocker.MagicMock()
+    mock_connection.cursor.return_value = mock_cursor
+    
+    # Replace orchestrator's db connection
+    orchestrator.db = mock_connection
+    
+    # Mock delivery_service.get to return None (no existing delivery)
+    mocker.patch.object(delivery_service, 'get', return_value=None)
+    
+    # Mock delivery_service.post to return None (simulating failure) - THIS IS THE CRITICAL PATH
+    mocker.patch.object(delivery_service, 'post', return_value=None)
+    
+    # Mock update_order_status to avoid DB issues
+    mocker.patch.object(orchestrator, 'update_order_status', return_value=True)
+    
+    # Call the orchestrator method directly
+    result = orchestrator.initiate_delivery('order-1')
+    
+    # Should return error because delivery_response is None (line 372)
+    assert result['error'] == "Failed to create delivery"
+    assert result['status'] == 500
+    
+    # Verify that delivery_service.post was actually called
+    delivery_service.post.assert_called_once()
+    
+    # Verify that update_order_status was NOT called (because we returned early)
+    orchestrator.update_order_status.assert_not_called()
+
+
+def test_initiate_delivery_endpoint_post_fails(client, mocker, auth_token):
+    """Test /deliver endpoint when delivery_service.post returns None (line 371-372 via endpoint)"""
+    from app import orchestrator, delivery_service
+    
+    # Mock get_order_details to return proper order structure
     mock_order_details = {
         'order': {
             'order_id': 'order-1',
@@ -3586,18 +3635,92 @@ def test_initiate_delivery_service_post_fails(mocker, mock_db):
             'longitude': 103.8198
         },
         'items': [],
-        'delivery': None  # No existing delivery
+        'delivery': None  # No existing delivery - will try to create one
     }
     
     mocker.patch.object(orchestrator, 'get_order_details', return_value=mock_order_details)
+    mocker.patch.object(delivery_service, 'post', return_value=None)  # POST fails
     
-    # Mock delivery_service.post to return None (simulating failure)
-    mocker.patch.object(delivery_service, 'post', return_value=None)
+    response = client.post('/orders/order-1/deliver')
+    
+    # Should get 500 error because delivery creation failed
+    assert response.status_code == 500
+    data = response.get_json()
+    assert data['error'] == "Failed to create delivery"
+
+
+def test_initiate_delivery_post_succeeds(mocker):
+    """Test initiate_delivery when delivery_service.post succeeds (line 371 FALSE branch->375)"""
+    from app import orchestrator, delivery_service
+    
+    # Mock the database cursor to return order details
+    mock_cursor = mocker.MagicMock()
+    mock_cursor.fetchone.return_value = {
+        'order_id': 'order-1',
+        'order_no': 'ORD-001',
+        'status': 'validated',
+        'latitude': 1.3521,
+        'longitude': 103.8198,
+        'customer_name': 'Test Customer',
+        'customer_contact': '12345678',
+        'customer_street': 'Test Street',
+        'customer_unit': '#01-01',
+        'customer_postal_code': '123456'
+    }
+    mock_cursor.fetchall.return_value = []  # No order items
+    
+    mock_connection = mocker.MagicMock()
+    mock_connection.cursor.return_value = mock_cursor
+    
+    # Replace orchestrator's db connection
+    orchestrator.db = mock_connection
+    
+    # Mock delivery_service.get to return None (no existing delivery)
+    mocker.patch.object(delivery_service, 'get', return_value=None)
+    
+    # Mock delivery_service.post to return SUCCESS (not None) - FALSE branch
+    mock_delivery_response = {'jobId': 'job-123', 'status': 'created'}
+    mocker.patch.object(delivery_service, 'post', return_value=mock_delivery_response)
+    
+    # Mock update_order_status to succeed
+    mocker.patch.object(orchestrator, 'update_order_status', return_value=True)
     
     # Call the orchestrator method directly
     result = orchestrator.initiate_delivery('order-1')
     
-    # Should return error because delivery_response is None
-    assert result['error'] == "Failed to create delivery"
-    assert result['status'] == 500
+    # Should succeed because delivery_response is NOT None (skips if block, goes to line 375)
+    assert result['message'] == "Delivery initiated successfully"
+    assert result['status'] == 200
+    
+    # Verify that delivery_service.post was called
+    delivery_service.post.assert_called_once()
+    
+    # Verify that update_order_status WAS called (because we didn't return early)
+    orchestrator.update_order_status.assert_called_once_with('order-1', 'out_for_delivery')
+
+
+def test_unschedule_order_no_schedule_id(client, mock_db, auth_token):
+    """Test unscheduling order when schedule_id is None (line 1274 FALSE branch->1284)"""
+    # Mock scheduled order
+    order_data = {
+        'order_id': 'test-order-123',
+        'order_no': 'ORD-20250101-ABC123',
+        'is_scheduled': 1,
+        'scheduled_delivery_date': '2025-10-01'
+    }
+    
+    # Mock database calls in sequence
+    mock_db.fetchone.side_effect = [
+        order_data,  # First call: get order details
+        None,  # Second call: get schedule_id - returns None (no schedule_orders entry)
+        # Third call would be count query, but it's skipped because schedule_id is None
+    ]
+    
+    response = client.patch('/orders/test-order-123/unschedule')
+    
+    # Should succeed even though schedule_id is None (skips the if block at line 1274)
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data['success'] is True
+    assert 'Order unscheduled successfully' in data['message']
 
