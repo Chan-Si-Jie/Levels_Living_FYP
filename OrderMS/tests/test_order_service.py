@@ -3571,3 +3571,33 @@ def test_initiate_delivery_with_existing_delivery_response(client, mock_db, auth
     data = response.get_json()
     assert data['message'] == "Delivery initiated successfully"
 
+
+def test_initiate_delivery_service_post_fails(mocker, mock_db):
+    """Test initiate_delivery when delivery_service.post returns None (line 371 TRUE branch)"""
+    from app import orchestrator, delivery_service
+    
+    # Mock get_order_details to return order without existing delivery
+    mock_order_details = {
+        'order': {
+            'order_id': 'order-1',
+            'order_no': 'ORD-001',
+            'status': 'validated',
+            'latitude': 1.3521,
+            'longitude': 103.8198
+        },
+        'items': [],
+        'delivery': None  # No existing delivery
+    }
+    
+    mocker.patch.object(orchestrator, 'get_order_details', return_value=mock_order_details)
+    
+    # Mock delivery_service.post to return None (simulating failure)
+    mocker.patch.object(delivery_service, 'post', return_value=None)
+    
+    # Call the orchestrator method directly
+    result = orchestrator.initiate_delivery('order-1')
+    
+    # Should return error because delivery_response is None
+    assert result['error'] == "Failed to create delivery"
+    assert result['status'] == 500
+
