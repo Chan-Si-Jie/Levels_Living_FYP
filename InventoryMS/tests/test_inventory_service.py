@@ -1743,3 +1743,69 @@ def test_get_delivery_types_service_exception_handler():
         pass
     finally:
         sys.settrace(original_trace)
+
+
+def test_create_product_none_returned(client, mock_db, auth_token):
+    """Test create product when second fetch returns None to cover FALSE branch of line 232"""
+    product_data = {
+        "sku": "TEST-NONE",
+        "item_name": "Test Product None",
+        "delivery_type": "standard",
+        "category": "Furniture",
+        "unit_price": 299.99,
+        "weight_per_unit": 10.5,
+        "volume_per_unit": 0.5
+    }
+    
+    # First call checks if SKU exists (None = doesn't exist)
+    # Second call tries to fetch created product but returns None (fetch failed)
+    mock_db.fetchone.side_effect = [None, None]
+    mock_db.rowcount = 1  # Insert succeeded
+    
+    response = client.post(
+        '/inventory/products',
+        data=json.dumps(product_data),
+        content_type='application/json'
+    )
+    
+    assert response.status_code == 201
+    data = response.get_json()
+    assert data['message'] == 'Product created successfully'
+    # When created_product is None, it's returned as-is
+    assert data['product'] is None
+
+
+def test_update_product_none_returned(client, mock_db, auth_token):
+    """Test update product when second fetch returns None to cover FALSE branch of line 329"""
+    existing_product = {
+        "sku": "TEST-UPDATE-NONE",
+        "item_name": "Existing Product",
+        "delivery_type": "standard",
+        "category": "Furniture",
+        "unit_price": 299.99,
+        "weight_per_unit": 10.5,
+        "volume_per_unit": 0.5,
+        "stock_quantity": 100
+    }
+    
+    update_data = {
+        "item_name": "Updated Product Name",
+        "stock_quantity": 150
+    }
+    
+    # First call checks if product exists (returns existing)
+    # Second call tries to fetch updated product but returns None (fetch failed)
+    mock_db.fetchone.side_effect = [existing_product, None]
+    mock_db.rowcount = 1  # Update succeeded
+    
+    response = client.put(
+        '/inventory/products/TEST-UPDATE-NONE',
+        data=json.dumps(update_data),
+        content_type='application/json'
+    )
+    
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data['message'] == 'Product updated successfully'
+    # When updated_product is None, it's returned as-is
+    assert data['product'] is None
