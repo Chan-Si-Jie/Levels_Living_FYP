@@ -1,13 +1,23 @@
 [run]
-source = app.py
+source = app
 omit = 
     tests/*
+    */tests/*
     venv/*
+    */venv/*
+    conftest.py
+    */conftest.py
+    */__pycache__/*
 
 [report]
 exclude_lines =
     pragma: no cover
+    def __repr__
     if __name__ == .__main__.:
+    raise AssertionError
+    raise NotImplementedError
+    if TYPE_CHECKING:
+    @abstractmethod
 
 show_missing = True
 precision = 2

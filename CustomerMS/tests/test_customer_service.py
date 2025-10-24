@@ -1437,3 +1437,114 @@ def test_force_geocode_exception_by_patching_dict_get():
     # to take the except branch.
     lat, lng = GeocodeService.get_coordinates(BadKey())
     assert (lat, lng) == (1.3521, 103.8198)
+
+
+def test_create_customer_json_parse_exception(client, auth_token, mock_db):
+    """Test create customer with invalid JSON in preferences to trigger except branch on lines 283-285"""
+    # Mock database to return customer with malformed JSON that will cause json.loads to fail
+    created_customer = {
+        'customer_id': 'uuid-json-error',
+        'customer_contact': '+6591234567',
+        'customer_postal_code': '238123',
+        'customer_street': 'Orchard Road',
+        'customer_unit': '#01-01',
+        'housing_type': 'HDB',
+        'delivery_preferences': 'INVALID_JSON{this is not json}',  # Malformed JSON
+        'communication_preferences': '{unclosed bracket',  # Malformed JSON
+        'latitude': 1.3521,
+        'longitude': 103.8198
+    }
+    
+    # First call returns None (no existing customer), second returns the created customer with bad JSON
+    mock_db['cursor'].fetchone.side_effect = [None, created_customer]
+    mock_db['cursor'].rowcount = 1
+    
+    response = client.post('/customers', 
+        headers={'Authorization': f'Bearer {auth_token}'},
+        json={
+            'customer_contact': '+6591234567',
+            'customer_postal_code': '238123',
+            'customer_street': 'Orchard Road',
+            'customer_unit': '#01-01',
+            'housing_type': 'HDB'
+        })
+    
+    assert response.status_code == 201
+    data = json.loads(response.data)
+    assert data['message'] == 'Customer created successfully'
+    # The except: pass should have caught the JSON error and returned the customer as-is
+
+
+def test_get_customer_by_contact_json_parse_exception(client, auth_token, mock_db):
+    """Test get customer by contact with invalid JSON to trigger except branch on lines 337-339"""
+    # Mock database to return customer with malformed JSON
+    customer_with_bad_json = {
+        'customer_id': 'uuid-bad-json',
+        'customer_contact': '+6591234567',
+        'customer_postal_code': '238123',
+        'customer_street': 'Test Street',
+        'customer_unit': '#01-01',
+        'housing_type': 'HDB',
+        'delivery_preferences': 'NOT_VALID_JSON!!!',  # Will cause json.loads to raise
+        'communication_preferences': 'ALSO_NOT_JSON',  # Will cause json.loads to raise
+        'is_active': True,
+        'latitude': 1.3521,
+        'longitude': 103.8198
+    }
+    
+    mock_db['cursor'].fetchone.return_value = customer_with_bad_json
+    
+    response = client.get('/customers/contact/91234567',
+        headers={'Authorization': f'Bearer {auth_token}'})
+    
+    assert response.status_code == 200
+    data = json.loads(response.data)
+    assert data['customer_id'] == 'uuid-bad-json'
+    # The except: pass should have caught the error and returned customer with unparsed JSON
+
+
+def test_create_customer_none_returned(client, auth_token, mock_db):
+    """Test create customer when second fetch returns None to cover branch 281->288"""
+    # First call returns None (no existing customer), second returns None (fetch failed)
+    mock_db['cursor'].fetchone.side_effect = [None, None]
+    mock_db['cursor'].rowcount = 1  # Insert succeeded but fetch failed
+    
+    response = client.post('/customers',
+        headers={'Authorization': f'Bearer {auth_token}'},
+        json={
+            'customer_contact': '+6591234567',
+            'customer_postal_code': '238123',
+            'customer_street': 'Test Street',
+            'customer_unit': '#01-01',
+            'housing_type': 'HDB'
+        })
+    
+    assert response.status_code == 201
+    data = json.loads(response.data)
+    assert data['message'] == 'Customer created successfully'
+    assert data['customer'] is None  # created_customer is None, so if block is skipped
+
+
+def test_validate_customer_data_with_is_update_true():
+    """Test CustomerValidationService.validate_customer_data with is_update=True to cover branch 428->435"""
+    from app import CustomerValidationService
+    
+    # When is_update=True, required fields check should be skipped
+    # Test with data that would fail required fields check if is_update=False
+    errors = CustomerValidationService.validate_customer_data({
+        'customer_street': 'Updated Street'  # No contact or postal_code
+    }, is_update=True)
+    
+    # Should return empty errors list since required fields are not checked on update
+    assert errors == []
+    
+    # But validation for present fields should still work
+    errors = CustomerValidationService.validate_customer_data({
+        'customer_contact': 'invalid',  # Invalid format
+        'customer_postal_code': '12345'  # Invalid format (only 5 digits)
+    }, is_update=True)
+    
+    # Should have errors for invalid formats
+    assert len(errors) == 2
+    assert any('contact' in err.lower() for err in errors)
+    assert any('postal' in err.lower() for err in errors)
