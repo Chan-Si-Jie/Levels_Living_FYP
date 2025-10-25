@@ -860,26 +860,33 @@ class TestEdgeCases:
         assert result is False
     
     def test_get_db_connection_success(self):
-        """Test successful database connection"""
-        with patch('mysql.connector.connect') as mock_connect:
-            mock_conn = MagicMock()
-            mock_connect.return_value = mock_conn
-            
+        """Test successful database connection - covers lines 101-113"""
+        from unittest.mock import MagicMock
+        
+        # Create a mock connection
+        mock_connection = MagicMock()
+        
+        # Patch mysql.connector.connect to return our mock
+        with patch('app.mysql.connector.connect', return_value=mock_connection):
             result = get_db_connection()
         
+        # Verify connection was returned
         assert result is not None
-        assert result == mock_conn
+        assert result == mock_connection
     
     def test_get_db_connection_failure(self):
-        """Test database connection failure"""
-        from mysql.connector import Error
+        """Test database connection failure - covers line 112"""
+        # Get the Error class from the mocked mysql.connector
+        import sys
+        mock_mysql = sys.modules['mysql.connector']
         
-        with patch('mysql.connector.connect') as mock_connect:
-            mock_connect.side_effect = Error("Connection failed")
-            
+        # Patch mysql.connector.connect to raise an error
+        with patch('app.mysql.connector.connect', side_effect=mock_mysql.Error("Connection failed")):
             result = get_db_connection()
         
+        # Verify None was returned on error
         assert result is None
+
 
 
 class TestInitializationErrors:
@@ -1236,24 +1243,37 @@ class TestMissingMessageField:
         assert 'error' in data
         assert 'required' in data['error'].lower()
     
-    def test_notify_order_delivered_missing_order_data(self, client, auth_token):
+    def test_notify_order_delivered_missing_order_data(self, client, auth_token, mock_db):
         """Test order delivered with phone but missing other data (covers message construction)"""
-        response = client.post('/notifications/order/123/delivered', json={
-            'phone_number': '+1234567890'
-            # Missing customer_name and order_number - will use defaults
-        })
-        
-        # This should work - message is constructed from available data
-        # But we need to ensure the branch for message construction is covered
-        assert response.status_code in [200, 500, 503]  # Could fail due to Twilio mock
+        with patch('app.twilio_client') as mock_twilio, \
+             patch.dict('app.app.config', {'TWILIO_PHONE_NUMBER': '+1234567890'}):
+            mock_message = MagicMock()
+            mock_message.sid = 'SM123'
+            mock_message.status = 'sent'
+            mock_twilio.messages.create.return_value = mock_message
+            
+            response = client.post('/notifications/order/123/delivered', json={
+                'phone_number': '+1234567890'
+                # Missing customer_name and order_number - will use defaults
+            })
+            
+            # Should work - message is constructed with defaults
+            assert response.status_code == 200
     
-    def test_notify_out_for_delivery_missing_order_data(self, client, auth_token):
+    def test_notify_out_for_delivery_missing_order_data(self, client, auth_token, mock_db):
         """Test out for delivery with phone but missing other data"""
-        response = client.post('/notifications/order/123/out-for-delivery', json={
-            'phone_number': '+1234567890'
-            # Missing customer_name, order_number, eta - will use defaults
-        })
-        
-        # This should work - message is constructed from available data
-        assert response.status_code in [200, 500, 503]  # Could fail due to Twilio mock
+        with patch('app.twilio_client') as mock_twilio, \
+             patch.dict('app.app.config', {'TWILIO_PHONE_NUMBER': '+1234567890'}):
+            mock_message = MagicMock()
+            mock_message.sid = 'SM456'
+            mock_message.status = 'sent'
+            mock_twilio.messages.create.return_value = mock_message
+            
+            response = client.post('/notifications/order/123/out-for-delivery', json={
+                'phone_number': '+1234567890'
+                # Missing customer_name, order_number, eta - will use defaults
+            })
+            
+            # Should work - message is constructed with defaults
+            assert response.status_code == 200
 

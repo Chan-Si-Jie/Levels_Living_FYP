@@ -6,19 +6,65 @@ from unittest.mock import MagicMock, patch, Mock
 # Add parent directory to path to import app
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-# Create mock Redis module before importing app
+# Set test environment variables before importing app
+os.environ['TESTING'] = 'True'
+os.environ['DB_HOST'] = 'localhost'
+os.environ['DB_NAME'] = 'test_db'
+os.environ['DB_USER'] = 'test_user'
+os.environ['DB_PASSWORD'] = 'test_pass'
+os.environ['REDIS_HOST'] = 'localhost'
+os.environ['TWILIO_ACCOUNT_SID'] = 'test_sid'
+os.environ['TWILIO_AUTH_TOKEN'] = 'test_token'
+os.environ['TWILIO_PHONE_NUMBER'] = '+1234567890'
+os.environ['TWILIO_WHATSAPP_NUMBER'] = 'whatsapp:+14155238886'
+
+# Create mock modules before importing app
 mock_redis_module = Mock()
 mock_redis_class = MagicMock()
 mock_redis_instance = MagicMock()
 mock_redis_instance.ping.return_value = True
 mock_redis_class.return_value = mock_redis_instance
 mock_redis_module.Redis = mock_redis_class
-
-# Patch both redis module and logging before importing app
 sys.modules['redis'] = mock_redis_module
 
+# Mock mysql.connector before import
+mock_mysql_connector_module = Mock()
+mock_mysql_connector_module.Error = Exception
+mock_mysql_connector_module.connect = MagicMock()
+
+# Create parent mysql module
+mock_mysql_module = Mock()
+mock_mysql_module.connector = mock_mysql_connector_module
+
+sys.modules['mysql'] = mock_mysql_module
+sys.modules['mysql.connector'] = mock_mysql_connector_module
+
+# Mock Twilio before import
+mock_twilio_module = Mock()
+mock_twilio_rest_module = Mock()
+mock_twilio_client_class = MagicMock()
+mock_twilio_rest_module.Client = mock_twilio_client_class
+mock_twilio_module.rest = mock_twilio_rest_module
+mock_twilio_module.base = Mock()
+mock_twilio_module.base.exceptions = Mock()
+
+class MockTwilioRestException(Exception):
+    def __init__(self, status, uri, msg='', code=None, method='POST'):
+        self.status = status
+        self.uri = uri
+        self.msg = msg
+        self.code = code
+        self.method = method
+        super().__init__(f"HTTP {status} error: Unable to create record: {msg}")
+
+mock_twilio_module.base.exceptions.TwilioRestException = MockTwilioRestException
+sys.modules['twilio'] = mock_twilio_module
+sys.modules['twilio.rest'] = mock_twilio_rest_module
+sys.modules['twilio.base'] = mock_twilio_module.base
+sys.modules['twilio.base.exceptions'] = mock_twilio_module.base.exceptions
+
+# Mock logging
 with patch('logging.getLogger') as mock_get_logger:
-    # Set up mock logger
     mock_logger = MagicMock()
     mock_get_logger.return_value = mock_logger
     
