@@ -846,4 +846,35 @@ SET character_set_client = @saved_cs_client;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
+--
+-- Table structure for table `notifications`
+--
+
+DROP TABLE IF EXISTS `notifications`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `notifications` (
+  `notification_id` varchar(36) NOT NULL,
+  `recipient` varchar(255) NOT NULL,
+  `message` text NOT NULL,
+  `channel` enum('sms','whatsapp','email') NOT NULL,
+  `notification_type` varchar(50) NOT NULL,
+  `external_id` varchar(255) DEFAULT NULL COMMENT 'Twilio message SID or external provider ID',
+  `status` enum('pending','sent','delivered','failed','queued') DEFAULT 'pending',
+  `error_message` text,
+  `order_id` varchar(36) DEFAULT NULL,
+  `customer_id` varchar(36) DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`notification_id`),
+  KEY `idx_notifications_order` (`order_id`),
+  KEY `idx_notifications_customer` (`customer_id`),
+  KEY `idx_notifications_status` (`status`),
+  KEY `idx_notifications_channel` (`channel`),
+  KEY `idx_notifications_created` (`created_at`),
+  CONSTRAINT `notifications_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`order_id`) ON DELETE SET NULL,
+  CONSTRAINT `notifications_ibfk_2` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`customer_id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
 -- Dump completed on 2025-10-08 13:44:39

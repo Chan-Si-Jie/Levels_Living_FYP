@@ -400,6 +400,20 @@
         .json-null {
             color: #f92672;
         }
+
+        .info-box {
+            margin-top: 10px;
+            padding: 10px;
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            border-radius: 8px;
+            font-size: 0.9em;
+            color: #856404;
+        }
+
+        .info-box strong {
+            color: #664d03;
+        }
     </style>
 </head>
 <body>
@@ -430,6 +444,10 @@
             </div>
             <div class="service-status" id="orderStatus">
                 <div>📋 OrderMS</div>
+                <div>Checking...</div>
+            </div>
+            <div class="service-status" id="notificationStatus">
+                <div>📱 NotificationMS</div>
                 <div>Checking...</div>
             </div>
 
@@ -806,6 +824,188 @@
                 </div>
             </div>
 
+            <!-- NotificationMS Panel -->
+            <div class="service-panel">
+                <div class="panel-header" onclick="togglePanel('notificationPanel')">
+                    📱 Notification Service (Twilio)
+                    <span class="toggle-icon">▼</span>
+                </div>
+                <div class="panel-content" id="notificationPanel">
+
+                    <!-- Send SMS -->
+                    <div class="endpoint-section">
+                        <h3>Send SMS Notification</h3>
+                        <div class="form-group">
+                            <label>Phone Number (E.164 format):</label>
+                            <input type="tel" id="smsPhoneNumber" placeholder="+6512345678" value="+1234567890">
+                        </div>
+                        <div class="form-group">
+                            <label>Message:</label>
+                            <textarea id="smsMessage" rows="3" placeholder="Enter your SMS message here...">Hello from Levels Living! This is a test notification.</textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Notification Type:</label>
+                            <select id="smsType">
+                                <option value="test">Test</option>
+                                <option value="general">General</option>
+                                <option value="order_confirmation">Order Confirmation</option>
+                                <option value="order_ready">Order Ready</option>
+                                <option value="out_for_delivery">Out for Delivery</option>
+                                <option value="delivery_confirmation">Delivery Confirmation</option>
+                                <option value="delivery_delay">Delivery Delay</option>
+                            </select>
+                        </div>
+                        <button class="btn success" onclick="sendSMS()">📤 Send SMS</button>
+                        <button class="btn" onclick="testNotificationHealth()">Check Health</button>
+                    </div>
+
+                    <!-- Send WhatsApp -->
+                    <div class="endpoint-section">
+                        <h3>Send WhatsApp Notification</h3>
+                        <div class="form-group">
+                            <label>Phone Number (E.164 format):</label>
+                            <input type="tel" id="whatsappPhoneNumber" placeholder="+6512345678" value="+1234567890">
+                        </div>
+                        <div class="form-group">
+                            <label>Message:</label>
+                            <textarea id="whatsappMessage" rows="3" placeholder="Enter your WhatsApp message here...">Hello from Levels Living! This is a test WhatsApp notification.</textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Notification Type:</label>
+                            <select id="whatsappType">
+                                <option value="test">Test</option>
+                                <option value="general">General</option>
+                                <option value="order_update">Order Update</option>
+                                <option value="delivery_update">Delivery Update</option>
+                            </select>
+                        </div>
+                        <button class="btn success" onclick="sendWhatsApp()">💬 Send WhatsApp</button>
+                        <div class="info-box" style="margin-top: 10px; padding: 10px; background: #fff3cd; border-radius: 8px; font-size: 0.9em;">
+                            <strong>Note:</strong> For trial accounts, recipient must first message your WhatsApp sandbox number with the join code.
+                        </div>
+                    </div>
+
+                    <!-- Order Delivered Notification -->
+                    <div class="endpoint-section">
+                        <h3>Order Delivered Notification</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Order ID:</label>
+                                <input type="text" id="deliveredOrderId" placeholder="order-uuid">
+                            </div>
+                            <div class="form-group">
+                                <label>Phone Number:</label>
+                                <input type="tel" id="deliveredPhone" placeholder="+6512345678" value="+1234567890">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Customer Name:</label>
+                                <input type="text" id="deliveredCustomerName" placeholder="John Doe" value="Test Customer">
+                            </div>
+                            <div class="form-group">
+                                <label>Order Number:</label>
+                                <input type="text" id="deliveredOrderNumber" placeholder="ORD-12345" value="ORD-TEST-001">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Channel:</label>
+                            <select id="deliveredChannel">
+                                <option value="sms">SMS</option>
+                                <option value="whatsapp">WhatsApp</option>
+                            </select>
+                        </div>
+                        <button class="btn success" onclick="notifyOrderDelivered()">✅ Notify Delivered</button>
+                    </div>
+
+                    <!-- Out for Delivery Notification -->
+                    <div class="endpoint-section">
+                        <h3>Out for Delivery Notification</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Order ID:</label>
+                                <input type="text" id="outForDeliveryOrderId" placeholder="order-uuid">
+                            </div>
+                            <div class="form-group">
+                                <label>Phone Number:</label>
+                                <input type="tel" id="outForDeliveryPhone" placeholder="+6512345678" value="+1234567890">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Customer Name:</label>
+                                <input type="text" id="outForDeliveryCustomerName" placeholder="John Doe" value="Test Customer">
+                            </div>
+                            <div class="form-group">
+                                <label>Order Number:</label>
+                                <input type="text" id="outForDeliveryOrderNumber" placeholder="ORD-12345" value="ORD-TEST-001">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>ETA:</label>
+                                <input type="text" id="outForDeliveryETA" placeholder="2 hours" value="30 minutes">
+                            </div>
+                            <div class="form-group">
+                                <label>Channel:</label>
+                                <select id="outForDeliveryChannel">
+                                    <option value="sms">SMS</option>
+                                    <option value="whatsapp">WhatsApp</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button class="btn warning" onclick="notifyOutForDelivery()">🚚 Notify Out for Delivery</button>
+                    </div>
+
+                    <!-- Notification History -->
+                    <div class="endpoint-section">
+                        <h3>Notification History (Admin Only)</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Limit:</label>
+                                <input type="number" id="notificationLimit" value="10" min="1" max="100">
+                            </div>
+                            <div class="form-group">
+                                <label>Offset:</label>
+                                <input type="number" id="notificationOffset" value="0" min="0">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Channel Filter:</label>
+                                <select id="notificationChannelFilter">
+                                    <option value="">All Channels</option>
+                                    <option value="sms">SMS</option>
+                                    <option value="whatsapp">WhatsApp</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Status Filter:</label>
+                                <select id="notificationStatusFilter">
+                                    <option value="">All Status</option>
+                                    <option value="sent">Sent</option>
+                                    <option value="delivered">Delivered</option>
+                                    <option value="failed">Failed</option>
+                                    <option value="pending">Pending</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button class="btn" onclick="getNotificationHistory()">📊 Get History</button>
+                    </div>
+
+                    <!-- Get Notification by ID -->
+                    <div class="endpoint-section">
+                        <h3>Get Notification Details</h3>
+                        <div class="form-group">
+                            <label>Notification ID:</label>
+                            <input type="text" id="notificationId" placeholder="notification-uuid">
+                        </div>
+                        <button class="btn" onclick="getNotificationById()">🔍 Get Notification</button>
+                    </div>
+
+                </div>
+            </div>
+
             <!-- Response Panel -->
             <div class="response-panel">
                 <div class="response-header">
@@ -837,6 +1037,7 @@ Happy testing! 🧪
             INVENTORY_API: 'http://localhost:5003',
             DELIVERY_API: 'http://localhost:5004',
             ORDER_API: 'http://localhost:5005',
+            NOTIFICATION_API: 'http://localhost:5006',
             KONG_API: 'http://localhost:8000'
         };
 
@@ -1022,7 +1223,8 @@ ${'═'.repeat(80)}
                 { id: 'customerStatus', name: 'CustomerMS', url: `${CONFIG.CUSTOMER_API}/health` },
                 { id: 'inventoryStatus', name: 'InventoryMS', url: `${CONFIG.INVENTORY_API}/health` },
                 { id: 'deliveryStatus', name: 'DeliveryMS', url: `${CONFIG.DELIVERY_API}/health` },
-                { id: 'orderStatus', name: 'OrderMS', url: `${CONFIG.ORDER_API}/health` }
+                { id: 'orderStatus', name: 'OrderMS', url: `${CONFIG.ORDER_API}/health` },
+                { id: 'notificationStatus', name: 'NotificationMS', url: `${CONFIG.NOTIFICATION_API}/health` }
             ];
 
             console.log('🔍 Checking services:', services.map(s => s.name));
@@ -1490,6 +1692,148 @@ ${'═'.repeat(80)}
             };
 
             await makeRequest('PUT', `${CONFIG.ORDER_API}/orders/${orderId}/complete`, data, true);
+        }
+
+        // NotificationMS Functions
+        async function testNotificationHealth() {
+            await makeRequest('GET', `${CONFIG.NOTIFICATION_API}/health`);
+        }
+
+        async function sendSMS() {
+            if (!currentToken) {
+                alert('⚠️ Please login first!');
+                return;
+            }
+
+            const phoneNumber = document.getElementById('smsPhoneNumber').value;
+            const message = document.getElementById('smsMessage').value;
+            const type = document.getElementById('smsType').value;
+
+            if (!phoneNumber || !message) {
+                alert('Please fill in phone number and message');
+                return;
+            }
+
+            const data = {
+                to: phoneNumber,
+                message: message,
+                type: type
+            };
+
+            await makeRequest('POST', `${CONFIG.NOTIFICATION_API}/notifications/sms`, data, true);
+        }
+
+        async function sendWhatsApp() {
+            if (!currentToken) {
+                alert('⚠️ Please login first!');
+                return;
+            }
+
+            const phoneNumber = document.getElementById('whatsappPhoneNumber').value;
+            const message = document.getElementById('whatsappMessage').value;
+            const type = document.getElementById('whatsappType').value;
+
+            if (!phoneNumber || !message) {
+                alert('Please fill in phone number and message');
+                return;
+            }
+
+            const data = {
+                to: phoneNumber,
+                message: message,
+                type: type
+            };
+
+            await makeRequest('POST', `${CONFIG.NOTIFICATION_API}/notifications/whatsapp`, data, true);
+        }
+
+        async function notifyOrderDelivered() {
+            if (!currentToken) {
+                alert('⚠️ Please login first!');
+                return;
+            }
+
+            const orderId = document.getElementById('deliveredOrderId').value;
+            const phoneNumber = document.getElementById('deliveredPhone').value;
+            const customerName = document.getElementById('deliveredCustomerName').value;
+            const orderNumber = document.getElementById('deliveredOrderNumber').value;
+            const channel = document.getElementById('deliveredChannel').value;
+
+            if (!orderId || !phoneNumber || !customerName || !orderNumber) {
+                alert('Please fill in all required fields');
+                return;
+            }
+
+            const data = {
+                phone_number: phoneNumber,
+                customer_name: customerName,
+                order_number: orderNumber,
+                channel: channel
+            };
+
+            await makeRequest('POST', `${CONFIG.NOTIFICATION_API}/notifications/order/${orderId}/delivered`, data, true);
+        }
+
+        async function notifyOutForDelivery() {
+            if (!currentToken) {
+                alert('⚠️ Please login first!');
+                return;
+            }
+
+            const orderId = document.getElementById('outForDeliveryOrderId').value;
+            const phoneNumber = document.getElementById('outForDeliveryPhone').value;
+            const customerName = document.getElementById('outForDeliveryCustomerName').value;
+            const orderNumber = document.getElementById('outForDeliveryOrderNumber').value;
+            const eta = document.getElementById('outForDeliveryETA').value;
+            const channel = document.getElementById('outForDeliveryChannel').value;
+
+            if (!orderId || !phoneNumber || !customerName || !orderNumber || !eta) {
+                alert('Please fill in all required fields');
+                return;
+            }
+
+            const data = {
+                phone_number: phoneNumber,
+                customer_name: customerName,
+                order_number: orderNumber,
+                eta: eta,
+                channel: channel
+            };
+
+            await makeRequest('POST', `${CONFIG.NOTIFICATION_API}/notifications/order/${orderId}/out-for-delivery`, data, true);
+        }
+
+        async function getNotificationHistory() {
+            if (!currentToken) {
+                alert('⚠️ Please login first! (Admin access required)');
+                return;
+            }
+
+            const limit = document.getElementById('notificationLimit').value || 10;
+            const offset = document.getElementById('notificationOffset').value || 0;
+            const channel = document.getElementById('notificationChannelFilter').value;
+            const status = document.getElementById('notificationStatusFilter').value;
+
+            let url = `${CONFIG.NOTIFICATION_API}/notifications/history?limit=${limit}&offset=${offset}`;
+            if (channel) url += `&channel=${channel}`;
+            if (status) url += `&status=${status}`;
+
+            await makeRequest('GET', url, null, true);
+        }
+
+        async function getNotificationById() {
+            if (!currentToken) {
+                alert('⚠️ Please login first!');
+                return;
+            }
+
+            const notificationId = document.getElementById('notificationId').value;
+            if (!notificationId) {
+                alert('Please enter a Notification ID');
+                return;
+            }
+
+            await makeRequest('GET', `${CONFIG.NOTIFICATION_API}/notifications/${notificationId}`, null, true);
         }
 
         // Utility Functions
