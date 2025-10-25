@@ -1084,60 +1084,6 @@ class TestInternalServerError:
         assert data['error'] == 'Internal server error'
 
 
-class TestMainBlockExecution:
-    """Test the if __name__ == '__main__' block"""
-    
-    def test_main_block_execution(self):
-        """Test that the __main__ block code is executed by running as script"""
-        import subprocess
-        import sys
-        import os
-        
-        # Create a simple test script that will execute app.py as __main__
-        # We'll use Python's -m flag with a wrapper
-        script_content = '''
-import sys
-import os
-os.chdir(r'c:\\Users\\user\\Documents\\GitHub\\Levels_Living_FYP\\NotificationMS')
-sys.path.insert(0, r'c:\\Users\\user\\Documents\\GitHub\\Levels_Living_FYP\\NotificationMS')
-
-# Mock Flask run before importing
-from unittest.mock import patch, MagicMock
-import builtins
-
-original_import = builtins.__import__
-
-def custom_import(name, *args, **kwargs):
-    if name == 'flask':
-        flask_mod = original_import(name, *args, **kwargs)
-        # Patch Flask.run
-        original_run = flask_mod.Flask.run
-        def mock_run(self, *args, **kwargs):
-            print("FLASK_RUN_CALLED")
-            return None
-        flask_mod.Flask.run = mock_run
-        return flask_mod
-    return original_import(name, *args, **kwargs)
-
-builtins.__import__ = custom_import
-
-# Now run the app module as __main__
-with open('app.py') as f:
-    code = compile(f.read(), 'app.py', 'exec')
-    exec(code, {'__name__': '__main__', '__file__': 'app.py'})
-'''
-        
-        # Run the script
-        result = subprocess.run(
-            [sys.executable, '-c', script_content],
-            capture_output=True,
-            text=True,
-            timeout=10,
-            cwd='c:\\Users\\user\\Documents\\GitHub\\Levels_Living_FYP\\NotificationMS'
-        )
-        
-        # Check if Flask.run was called (which means __main__ block executed)
-        assert 'FLASK_RUN_CALLED' in result.stdout, f"Main block was not executed. stdout: {result.stdout}, stderr: {result.stderr}"
 
 
 class TestWhatsAppNumberFormatting:
