@@ -1176,57 +1176,57 @@ def delete_schedule(schedule_id):
             return jsonify({"error": "Database connection failed"}), 500
 
         cursor = connection.cursor(dictionary=True)
+        
+        try:
+            # Check if schedule exists
+            cursor.execute(
+                "SELECT schedule_id, schedule_date, status FROM delivery_schedules WHERE schedule_id = %s",
+                (schedule_id,)
+            )
+            schedule = cursor.fetchone()
 
-        # Check if schedule exists
-        cursor.execute(
-            "SELECT schedule_id, schedule_date, status FROM delivery_schedules WHERE schedule_id = %s",
-            (schedule_id,)
-        )
-        schedule = cursor.fetchone()
+            if not schedule:
+                return jsonify({"error": "Schedule not found"}), 404
 
-        if not schedule:
+            # Get all orders in this schedule
+            cursor.execute("""
+                SELECT o.order_id, o.order_no
+                FROM orders o
+                JOIN schedule_orders so ON o.order_id = so.order_id
+                WHERE so.schedule_id = %s
+            """, (schedule_id,))
+            orders = cursor.fetchall()
+
+            # Reset all orders back to unscheduled
+            cursor.execute("""
+                UPDATE orders
+                SET is_scheduled = 0,
+                    scheduled_delivery_date = NULL,
+                    scheduled_by = NULL,
+                    scheduled_at = NULL
+                WHERE order_id IN (
+                    SELECT order_id FROM schedule_orders WHERE schedule_id = %s
+                )
+            """, (schedule_id,))
+
+            # Delete schedule_orders entries
+            cursor.execute("DELETE FROM schedule_orders WHERE schedule_id = %s", (schedule_id,))
+
+            # Delete the schedule
+            cursor.execute("DELETE FROM delivery_schedules WHERE schedule_id = %s", (schedule_id,))
+
+            logger.info(f"Schedule {schedule_id} deleted, {len(orders)} orders unscheduled")
+
+            return jsonify({
+                "success": True,
+                "message": f"Schedule deleted successfully",
+                "schedule_id": schedule_id,
+                "orders_unscheduled": len(orders)
+            }), 200
+        
+        finally:
             cursor.close()
             connection.close()
-            return jsonify({"error": "Schedule not found"}), 404
-
-        # Get all orders in this schedule
-        cursor.execute("""
-            SELECT o.order_id, o.order_no
-            FROM orders o
-            JOIN schedule_orders so ON o.order_id = so.order_id
-            WHERE so.schedule_id = %s
-        """, (schedule_id,))
-        orders = cursor.fetchall()
-
-        # Reset all orders back to unscheduled
-        cursor.execute("""
-            UPDATE orders
-            SET is_scheduled = 0,
-                scheduled_delivery_date = NULL,
-                scheduled_by = NULL,
-                scheduled_at = NULL
-            WHERE order_id IN (
-                SELECT order_id FROM schedule_orders WHERE schedule_id = %s
-            )
-        """, (schedule_id,))
-
-        # Delete schedule_orders entries
-        cursor.execute("DELETE FROM schedule_orders WHERE schedule_id = %s", (schedule_id,))
-
-        # Delete the schedule
-        cursor.execute("DELETE FROM delivery_schedules WHERE schedule_id = %s", (schedule_id,))
-
-        cursor.close()
-        connection.close()
-
-        logger.info(f"Schedule {schedule_id} deleted, {len(orders)} orders unscheduled")
-
-        return jsonify({
-            "success": True,
-            "message": f"Schedule deleted successfully",
-            "schedule_id": schedule_id,
-            "orders_unscheduled": len(orders)
-        }), 200
 
     except Exception as e:
         logger.error(f"Error deleting schedule: {e}")

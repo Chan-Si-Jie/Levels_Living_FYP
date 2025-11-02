@@ -1,10 +1,6 @@
 import pytest
 from app import app
 import json
-import os
-import sys
-import types
-import importlib
 
 
 def test_health_check(client):

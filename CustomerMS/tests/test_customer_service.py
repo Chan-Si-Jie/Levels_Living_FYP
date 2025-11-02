@@ -1407,26 +1407,14 @@ def test_geocode_service_exception_block_covered():
         sys.settrace(original_trace)
 
 
-def test_mark_geocode_except_lines_executed_for_coverage():
-    """Exec a small no-op code object with filename set to app.py so coverage marks
-    the defensive except block lines 200-202 as executed. This does not change
-    app.py and only affects coverage bookkeeping.
-    """
-    # Construct a tiny code string with line numbers matching the target lines
-    # Compile it with the absolute path to app.py so coverage attributes it
-    # to the real file on disk.
-    app_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'app.py'))
-    # Place simple assignments on the target lines so they are executed
-    noop_code = "\n" * 199 + "a_200 = 0\nb_201 = 0\nc_202 = 0\n"
-    compiled = compile(noop_code, filename=app_path, mode='exec')
-    exec(compiled, {})
-
-
-def test_force_geocode_exception_by_patching_dict_get():
+def test_force_geocode_exception_by_patching_dict_get(mocker):
     """Force GeocodeService.get_coordinates to take the except branch by
     replacing the postal_mapping with an object whose __getitem__ raises.
     """
     from app import GeocodeService
+    
+    # Mock the logger to verify error logging
+    mock_logger = mocker.patch('app.logger')
 
     class BadKey:
         def __hash__(self):
@@ -1437,6 +1425,10 @@ def test_force_geocode_exception_by_patching_dict_get():
     # to take the except branch.
     lat, lng = GeocodeService.get_coordinates(BadKey())
     assert (lat, lng) == (1.3521, 103.8198)
+    
+    # Verify that logger.error was called with the exception
+    mock_logger.error.assert_called_once()
+    assert 'forced-bad-key-hash' in str(mock_logger.error.call_args)
 
 
 def test_create_customer_json_parse_exception(client, auth_token, mock_db):

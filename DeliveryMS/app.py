@@ -42,14 +42,6 @@ def get_warehouse_waypoint():
     if lat and lng:
         return {"location": {"latLng": {"latitude": float(lat), "longitude": float(lng)}}}
 
-    # place_id = os.getenv("WAREHOUSE_PLACE_ID")
-    # if place_id:
-    #     return {"placeId": place_id}
-
-    # addr = os.getenv("WAREHOUSE_ADDRESS")
-    # if addr:
-    #     return {"location": {"address": addr}}
-
     # Default to Tampines warehouse if not configured
     return {"location": {"latLng": {"latitude": 1.375645, "longitude": 103.929573}}}
 
@@ -103,32 +95,6 @@ def compute_route(origin, destination, stops):
     if "routes" not in data or not data["routes"]:
         raise RuntimeError("No route returned from Google.")
     return data["routes"][0]
-
-# def geocode_address(address_or_postal: str):  # pragma: no cover
-#     """
-#     Geocode an address or postal code using Google Geocoding API.
-#     Returns: {'lat': float, 'lng': float, 'formatted_address': str, 'place_id': str}
-#     """  # pragma: no cover
-#     api_key = os.getenv("GOOGLE_API_KEY")  # pragma: no cover
-#     if not api_key:  # pragma: no cover
-#         raise RuntimeError("GOOGLE_API_KEY not set in environment (needed for Geocoding).")  # pragma: no cover
-
-#     r = requests.get(GEOCODE_URL, params={"address": address_or_postal, "key": api_key}, timeout=10)  # pragma: no cover
-#     r.raise_for_status()  # pragma: no cover
-#     data = r.json()  # pragma: no cover
-
-#     if data.get("status") != "OK" or not data.get("results"):  # pragma: no cover
-#         msg = data.get("error_message") or data.get("status") or "geocode failed"  # pragma: no cover
-#         raise RuntimeError(f"Geocode failed for '{address_or_postal}': {msg}")  # pragma: no cover
-
-#     res = data["results"][0]  # pragma: no cover
-#     loc = res["geometry"]["location"]  # pragma: no cover
-#     return {  # pragma: no cover
-#         "lat": float(loc["lat"]),  # pragma: no cover
-#         "lng": float(loc["lng"]),  # pragma: no cover
-#         "formatted_address": res.get("formatted_address"),  # pragma: no cover
-#         "place_id": res.get("place_id")  # pragma: no cover
-#     }  # pragma: no cover
 
 def to_latlng(value):
     """

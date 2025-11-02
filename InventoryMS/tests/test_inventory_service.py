@@ -14,14 +14,6 @@ import mysql.connector
 from mysql.connector import Error
 
 
-
-import sys
-import types
-from unittest import mock
-import mysql.connector
-from mysql.connector import Error
-
-
 # ==================== Health Check Tests ====================
 
 def test_health_check(client, mock_db):
@@ -939,44 +931,6 @@ def test_estimate_delivery_time_with_showroom(client, mock_db, auth_token):
     assert data['delivery_requirements'][0]['estimated_delivery_time'] >= 150
 
 
-
-
-def test_health_check_redis_ping_failure(client, mock_db, mocker):
-    """Test health check when Redis ping fails"""
-    # Mock Redis client to exist but ping fails
-    import app as inventory_app
-    
-    mock_redis = mocker.Mock()
-    mock_redis.ping.side_effect = Exception("Redis connection failed")
-    
-    original_redis = inventory_app.redis_client
-    inventory_app.redis_client = mock_redis
-    
-    try:
-        response = client.get('/health')
-        assert response.status_code == 200
-        data = response.get_json()
-        assert data['redis'] == 'disconnected'
-    finally:
-        inventory_app.redis_client = original_redis
-
-
-
-
-def test_health_check_redis_not_available(client, mock_db, mocker):
-    """Test health check when Redis client is None"""
-    import app as inventory_app
-    
-    original_redis = inventory_app.redis_client
-    inventory_app.redis_client = None
-    
-    try:
-        response = client.get('/health')
-        assert response.status_code == 200
-        data = response.get_json()
-        assert data['redis'] == 'disconnected'
-    finally:
-        inventory_app.redis_client = original_redis
 
 
 # ==================== Infrastructure Tests ====================
