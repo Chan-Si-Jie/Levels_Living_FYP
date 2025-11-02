@@ -42,14 +42,6 @@ def get_warehouse_waypoint():
     if lat and lng:
         return {"location": {"latLng": {"latitude": float(lat), "longitude": float(lng)}}}
 
-    # place_id = os.getenv("WAREHOUSE_PLACE_ID")
-    # if place_id:
-    #     return {"placeId": place_id}
-
-    # addr = os.getenv("WAREHOUSE_ADDRESS")
-    # if addr:
-    #     return {"location": {"address": addr}}
-
     # Default to Tampines warehouse if not configured
     return {"location": {"latLng": {"latitude": 1.375645, "longitude": 103.929573}}}
 
@@ -103,32 +95,6 @@ def compute_route(origin, destination, stops):
     if "routes" not in data or not data["routes"]:
         raise RuntimeError("No route returned from Google.")
     return data["routes"][0]
-
-def geocode_address(address_or_postal: str):
-    """
-    Geocode an address or postal code using Google Geocoding API.
-    Returns: {'lat': float, 'lng': float, 'formatted_address': str, 'place_id': str}
-    """
-    api_key = os.getenv("GOOGLE_API_KEY")
-    if not api_key:
-        raise RuntimeError("GOOGLE_API_KEY not set in environment (needed for Geocoding).")
-
-    r = requests.get(GEOCODE_URL, params={"address": address_or_postal, "key": api_key}, timeout=10)
-    r.raise_for_status()
-    data = r.json()
-
-    if data.get("status") != "OK" or not data.get("results"):
-        msg = data.get("error_message") or data.get("status") or "geocode failed"
-        raise RuntimeError(f"Geocode failed for '{address_or_postal}': {msg}")
-
-    res = data["results"][0]
-    loc = res["geometry"]["location"]
-    return {
-        "lat": float(loc["lat"]),
-        "lng": float(loc["lng"]),
-        "formatted_address": res.get("formatted_address"),
-        "place_id": res.get("place_id")
-    }
 
 def to_latlng(value):
     """
@@ -479,6 +445,6 @@ def testing():
         }
     })
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     port = int(os.getenv("SERVICE_PORT", 5004))
     app.run(host="0.0.0.0", port=port, debug=True)

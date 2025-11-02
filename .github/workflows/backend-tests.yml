@@ -7,6 +7,7 @@ on:
       - 'CustomerMS/**'
       - 'DeliveryMS/**'
       - 'InventoryMS/**'
+      - 'NotificationMS/**'
       - 'OrderMS/**'
       - 'UserMS/**'
       - '.github/workflows/backend-tests.yml'
@@ -16,6 +17,7 @@ on:
       - 'CustomerMS/**'
       - 'DeliveryMS/**'
       - 'InventoryMS/**'
+      - 'NotificationMS/**'
       - 'OrderMS/**'
       - 'UserMS/**'
       - '.github/workflows/backend-tests.yml'
@@ -25,8 +27,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [CustomerMS, DeliveryMS, InventoryMS, OrderMS, UserMS]
-        python-version: [3.9]
+        service: [CustomerMS, DeliveryMS, InventoryMS, NotificationMS, OrderMS, UserMS]
+        python-version: ['3.12']
 
     services:
       mysql:
@@ -76,10 +78,15 @@ jobs:
         GOOGLE_API_KEY: test-api-key-for-ci
         WAREHOUSE_LAT: "1.375645"
         WAREHOUSE_LNG: "103.929573"
+        TWILIO_ACCOUNT_SID: test-twilio-account-sid
+        TWILIO_AUTH_TOKEN: test-twilio-auth-token
+        TWILIO_PHONE_NUMBER: +1234567890
+        TWILIO_WHATSAPP_NUMBER: whatsapp:+1234567890
       run: |
-        pytest tests/ -v --cov=. --cov-report=xml
+        pytest tests/ -v --cov=app --cov-branch --cov-report=term-missing --cov-report=xml --cov-report=html
 
     - name: Upload coverage to Codecov
+      if: success()  # Only upload if tests passed
       uses: codecov/codecov-action@v3
       continue-on-error: true  # Don't fail the workflow if Codecov upload fails
       with:

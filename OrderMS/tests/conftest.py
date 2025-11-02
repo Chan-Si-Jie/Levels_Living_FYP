@@ -76,6 +76,9 @@ def auth_token(mocker):
         'sub': 'test-user-id',
         'role': 'admin'
     })
+    
+    # Return a dummy token string for tests that need it in headers
+    return "test-token-123"
 
 
 @pytest.fixture

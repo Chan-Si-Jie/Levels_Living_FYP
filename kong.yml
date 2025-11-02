@@ -67,3 +67,11 @@ services:
           - /orders
           - /schedules
         strip_path: false
+
+  - name: notification-service
+    url: http://notification-service:5006
+    routes:
+      - name: notification-route
+        paths:
+          - /notifications
+        strip_path: false

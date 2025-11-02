@@ -581,5 +581,5 @@ def validate_customer_data():
         logger.error(f"Validate customer data endpoint error: {e}")
         return jsonify({"error": "Internal server error"}), 500
 
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=Config.SERVICE_PORT)
+if __name__ == '__main__':  # pragma: no cover
+    app.run(debug=True, host='0.0.0.0', port=Config.SERVICE_PORT)  # pragma: no cover

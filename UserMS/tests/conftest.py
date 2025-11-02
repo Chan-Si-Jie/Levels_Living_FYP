@@ -47,7 +47,8 @@ def auth_token(mocker):
     mock_jwt = {
         'sub': 'admin@levels.sg',
         'roles': ['admin', 'user_service'],
-        'role': 'admin'
+        'role': 'admin',
+        'jti': 'test-jti-12345'  # Add JTI for blacklist tests
     }
     def mock_verify_jwt(*args, **kwargs):
         from flask import g
@@ -56,7 +57,7 @@ def auth_token(mocker):
     def mock_get_jwt():
         return mock_jwt
     def mock_get_jwt_identity():
-        return 'admin@levels.sg'
+        return 'uuid-1234'  # Return user_id instead of email
     # Only patch the flask_jwt_extended package-level functions
     mocker.patch('flask_jwt_extended.view_decorators.verify_jwt_in_request', side_effect=mock_verify_jwt)
     mocker.patch('flask_jwt_extended.utils.get_jwt', side_effect=mock_get_jwt)

@@ -532,7 +532,7 @@ class InventoryService:
             
             return {"delivery_types": delivery_types}, 200
             
-        except Exception as e:
+        except Exception as e:  # pragma: no cover - defensive code, no failure points in try block
             logger.error(f"Get delivery types error: {e}")
             return {"error": "Internal server error"}, 500
     
@@ -594,15 +594,15 @@ class InventoryService:
             
             # Weight factor
             weight = product.get('weight_per_unit', 0)
-            if weight > 50:
-                complexity += 1
-            elif weight > 100:
+            if weight > 100:
                 complexity += 2
+            elif weight > 50:
+                complexity += 1           
             
             return min(complexity, 5)  # Cap at 5
             
         except Exception:
-            return 1  # Default complexity
+            return 1
     
     @staticmethod
     def _estimate_delivery_time(product):
@@ -636,7 +636,7 @@ class InventoryService:
             return estimated_time
             
         except Exception:
-            return 120  # Default 2 hours
+            return 120
 
 # API Routes
 @app.route('/health', methods=['GET'])
@@ -717,14 +717,13 @@ def get_delivery_requirements():
         
         if not data or 'skus' not in data:
             return jsonify({"error": "No SKUs provided"}), 400
-
+        
         result, status = InventoryService.get_delivery_requirements(data['skus'])
         return jsonify(result), status
         
     except Exception as e:
         logger.error(f"Get delivery requirements endpoint error: {e}")
         return jsonify({"error": "Internal server error"}), 500
-
 @app.route('/inventory/products', methods=['GET'])
 @role_required(['admin', 'driver'])
 def search_products():
@@ -763,5 +762,5 @@ def get_delivery_types():
         logger.error(f"Get delivery types endpoint error: {e}")
         return jsonify({"error": "Internal server error"}), 500
 
-if __name__ == '__main__':
+if __name__ == '__main__':  # pragma: no cover
     app.run(debug=True, host='0.0.0.0', port=Config.SERVICE_PORT)

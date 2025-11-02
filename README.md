@@ -15,15 +15,16 @@ A comprehensive microservices-based last mile delivery system with complete API 
 ## System Architecture
 
 ### Microservices Overview
-This project implements a microservices architecture consisting of: (So far)
+This project implements a microservices architecture consisting of:
 
 1. **User Authentication Service (Port 5001)** - Handles user registration, login, JWT token management
 2. **Customer Service (Port 5002)** - Manages customer information, addresses, and preferences  
 3. **Inventory Service (Port 5003)** - Inventory and delivery types
-
-
-4. **MySQL Database** - Primary data storage with comprehensive schema
-5. **Redis** - Session management, caching, and real-time features
+4. **Delivery Service (Port 5004)** - Delivery scheduling and route optimization
+5. **Order Management Service (Port 5005)** - Complete order lifecycle management
+6. **Notification Service (Port 5006)** - SMS and WhatsApp notifications via Twilio
+7. **MySQL Database** - Primary data storage with comprehensive schema
+8. **Redis** - Session management, caching, and real-time features
 
 ### Technology Stack
 - **Backend**: Python 3.11, Flask, Gunicorn
@@ -69,6 +70,9 @@ docker-compose ps
 # - levels_user_auth (User Authentication Service)
 # - levels_customer (Customer Service)
 # - levels_inventory (Inventory Service)
+# - levels_delivery (Delivery Service)
+# - levels_order (Order Management Service)
+# - levels_notification (Notification Service)
 ```
 
 ### 4. Start API Testing Interface
@@ -79,7 +83,7 @@ python -m http.server 8000
 
 **Operating the Program:**
 - **API Testing Dashboard**: http://localhost:8000/api_tester.html OR run api_tester.html from your vscode
-- **Services**: Running on ports 5001-5003
+- **Services**: Running on ports 5001-5006
 - **Database**: MySQL on port 3306
 - **Redis**: On port 6379
 

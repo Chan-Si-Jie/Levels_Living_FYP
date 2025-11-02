@@ -2,6 +2,9 @@
 .sql
 .env.local
 .next
+.coverage
+coverage.xml
 __pycache__
 .pytest_cache
 venv
+coverage*
