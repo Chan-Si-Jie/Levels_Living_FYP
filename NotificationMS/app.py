@@ -233,11 +233,18 @@ class NotificationService:
             return None, "Twilio WhatsApp number not configured", 500
         
         try:
-            # Format WhatsApp number
+            # Format WhatsApp number for recipient
             if not to_number.startswith('whatsapp:'):
                 if not to_number.startswith('+'):
                     to_number = '+' + to_number
                 to_number = f'whatsapp:{to_number}'
+            
+            # Format WhatsApp number for sender (from)
+            from_number = app.config['TWILIO_WHATSAPP_NUMBER']
+            if not from_number.startswith('whatsapp:'):
+                if not from_number.startswith('+'):
+                    from_number = '+' + from_number
+                from_number = f'whatsapp:{from_number}'
             
             # Prepare message content for logging
             message_content = f"Your delivery will be arriving in {time}. Thank you for ordering with Levels Living :)"
@@ -245,7 +252,7 @@ class NotificationService:
             # Check if content_sid is configured (for WhatsApp templates)
             if app.config.get('TWILIO_WHATSAPP_CONTENT_SID'):
                 message_obj = twilio_client.messages.create(
-                    from_=app.config['TWILIO_WHATSAPP_NUMBER'],
+                    from_=from_number,
                     to=to_number,
                     content_sid=app.config['TWILIO_WHATSAPP_CONTENT_SID'],
                     content_variables=f'{{"1":"{time}"}}'
@@ -254,7 +261,7 @@ class NotificationService:
                 # Send regular text message (for sandbox mode)
                 message_obj = twilio_client.messages.create(
                     body=message_content,
-                    from_=app.config['TWILIO_WHATSAPP_NUMBER'],
+                    from_=from_number,
                     to=to_number
                 )
             
