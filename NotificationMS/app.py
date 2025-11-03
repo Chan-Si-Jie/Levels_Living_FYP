@@ -12,6 +12,8 @@ import logging
 from functools import wraps
 from twilio.rest import Client
 from twilio.base.exceptions import TwilioRestException
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail, Email, To, Content
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -50,6 +52,12 @@ class Config:
     TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN')
     TWILIO_PHONE_NUMBER = os.environ.get('TWILIO_PHONE_NUMBER')
     TWILIO_WHATSAPP_NUMBER = os.environ.get('TWILIO_WHATSAPP_NUMBER')  # Format: whatsapp:+1234567890
+    TWILIO_WHATSAPP_CONTENT_SID = os.environ.get('TWILIO_WHATSAPP_CONTENT_SID')  # WhatsApp template content SID
+
+    # SendGrid Configuration (Twilio's email service)
+    SENDGRID_API_KEY = os.environ.get('SENDGRID_API_KEY')
+    SENDGRID_FROM_EMAIL = os.environ.get('SENDGRID_FROM_EMAIL')
+    SENDGRID_FROM_NAME = os.environ.get('SENDGRID_FROM_NAME') or 'Levels Living'
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -95,6 +103,17 @@ if app.config['TWILIO_ACCOUNT_SID'] and app.config['TWILIO_AUTH_TOKEN']:
         logger.error(f"Twilio initialization failed: {e}")
 else:
     logger.warning("Twilio credentials not configured")
+
+# Initialize SendGrid client
+sendgrid_client = None
+if app.config['SENDGRID_API_KEY']:
+    try:
+        sendgrid_client = SendGridAPIClient(app.config['SENDGRID_API_KEY'])
+        logger.info("SendGrid client initialized successfully")
+    except Exception as e:
+        logger.error(f"SendGrid initialization failed: {e}")
+else:
+    logger.warning("SendGrid API key not configured")
 
 # Database connection helper
 def get_db_connection():
@@ -203,8 +222,8 @@ class NotificationService:
             return None, f"Failed to send SMS: {str(e)}", 500
     
     @staticmethod
-    def send_whatsapp(to_number, message, notification_type='general'):
-        """Send WhatsApp message via Twilio"""
+    def send_whatsapp(to_number, time, notification_type='general'):
+        """Send WhatsApp message via Twilio with template"""
         if not twilio_client:
             logger.error("Twilio client not initialized")
             return None, "Twilio service not available", 503
@@ -220,16 +239,29 @@ class NotificationService:
                     to_number = '+' + to_number
                 to_number = f'whatsapp:{to_number}'
             
-            message_obj = twilio_client.messages.create(
-                body=message,
-                from_=app.config['TWILIO_WHATSAPP_NUMBER'],
-                to=to_number
-            )
+            # Prepare message content for logging
+            message_content = f"Your delivery will be arriving in {time}. Thank you for ordering with Levels Living :)"
+            
+            # Check if content_sid is configured (for WhatsApp templates)
+            if app.config.get('TWILIO_WHATSAPP_CONTENT_SID'):
+                message_obj = twilio_client.messages.create(
+                    from_=app.config['TWILIO_WHATSAPP_NUMBER'],
+                    to=to_number,
+                    content_sid=app.config['TWILIO_WHATSAPP_CONTENT_SID'],
+                    content_variables=f'{{"1":"{time}"}}'
+                )
+            else:
+                # Send regular text message (for sandbox mode)
+                message_obj = twilio_client.messages.create(
+                    body=message_content,
+                    from_=app.config['TWILIO_WHATSAPP_NUMBER'],
+                    to=to_number
+                )
             
             # Log notification to database
             notification_id = NotificationService.log_notification(
                 recipient=to_number,
-                message=message,
+                message=message_content,
                 channel='whatsapp',
                 notification_type=notification_type,
                 external_id=message_obj.sid,
@@ -250,7 +282,7 @@ class NotificationService:
             # Log failed notification
             NotificationService.log_notification(
                 recipient=to_number,
-                message=message,
+                message=message_content if 'message_content' in locals() else f"Template delivery message (time: {time})",
                 channel='whatsapp',
                 notification_type=notification_type,
                 status='failed',
@@ -258,6 +290,69 @@ class NotificationService:
             )
             
             return None, f"Failed to send WhatsApp: {str(e)}", 500
+    
+    @staticmethod
+    def send_email(to_email, subject, message, notification_type='general', html_content=None):
+        """Send email via SendGrid (Twilio's email service)"""
+        if not sendgrid_client:
+            logger.error("SendGrid client not initialized")
+            return None, "SendGrid service not available", 503
+        
+        if not app.config['SENDGRID_FROM_EMAIL']:
+            logger.error("SendGrid from email not configured")
+            return None, "SendGrid from email not configured", 500
+        
+        try:
+            # Create email message
+            from_email = Email(
+                app.config['SENDGRID_FROM_EMAIL'],
+                app.config['SENDGRID_FROM_NAME']
+            )
+            to_email_obj = To(to_email)
+            
+            # Use HTML content if provided, otherwise plain text
+            if html_content:
+                content = Content("text/html", html_content)
+            else:
+                content = Content("text/plain", message)
+            
+            mail = Mail(from_email, to_email_obj, subject, content)
+            
+            # Send email
+            response = sendgrid_client.send(mail)
+            
+            # Log notification to database
+            notification_id = NotificationService.log_notification(
+                recipient=to_email,
+                message=f"Subject: {subject}\n\n{message}",
+                channel='email',
+                notification_type=notification_type,
+                external_id=response.headers.get('X-Message-Id'),
+                status='sent'
+            )
+            
+            logger.info(f"Email sent successfully to {to_email}")
+            return {
+                'notification_id': notification_id,
+                'status_code': response.status_code,
+                'to': to_email,
+                'subject': subject
+            }, None, 200
+            
+        except Exception as e:
+            logger.error(f"SendGrid email error: {e}")
+            
+            # Log failed notification
+            NotificationService.log_notification(
+                recipient=to_email,
+                message=f"Subject: {subject}\n\n{message}",
+                channel='email',
+                notification_type=notification_type,
+                status='failed',
+                error_message=str(e)
+            )
+            
+            return None, f"Failed to send email: {str(e)}", 500
     
     @staticmethod
     def log_notification(recipient, message, channel, notification_type, 
@@ -365,6 +460,7 @@ def health():
         redis_status = "disconnected"
     
     twilio_status = "configured" if twilio_client else "not configured"
+    sendgrid_status = "configured" if sendgrid_client else "not configured"
     
     return jsonify({
         "service": app.config['SERVICE_NAME'],
@@ -372,6 +468,7 @@ def health():
         "database": db_status,
         "redis": redis_status,
         "twilio": twilio_status,
+        "sendgrid": sendgrid_status,
         "timestamp": datetime.now().isoformat()
     })
 
@@ -430,13 +527,13 @@ def send_whatsapp_notification():
         return jsonify({"error": "Request body required"}), 400
     
     to_number = data.get('to')
-    message = data.get('message')
+    time = data.get('time')
     notification_type = data.get('type', 'general')
     
-    if not to_number or not message:
-        return jsonify({"error": "to and message are required"}), 400
+    if not to_number or not time:
+        return jsonify({"error": "to and time are required"}), 400
     
-    result, error, status = NotificationService.send_whatsapp(to_number, message, notification_type)
+    result, error, status = NotificationService.send_whatsapp(to_number, time, notification_type)
     
     if error:
         return jsonify({"error": error}), status
@@ -452,13 +549,66 @@ def send_whatsapp_test():
         return jsonify({"error": "Request body required"}), 400
     
     to_number = data.get('to')
-    message = data.get('message')
+    time = data.get('time')
     notification_type = data.get('type', 'test')
     
-    if not to_number or not message:
-        return jsonify({"error": "to and message are required"}), 400
+    if not to_number or not time:
+        return jsonify({"error": "to and time are required"}), 400
     
-    result, error, status = NotificationService.send_whatsapp(to_number, message, notification_type)
+    result, error, status = NotificationService.send_whatsapp(to_number, time, notification_type)
+    
+    if error:
+        return jsonify({"error": error}), status
+    
+    return jsonify(result), status
+
+@app.route('/notifications/email', methods=['POST'])
+@auth_required
+def send_email_notification():
+    """Send email notification"""
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({"error": "Request body required"}), 400
+    
+    to_email = data.get('to')
+    subject = data.get('subject')
+    message = data.get('message')
+    html_content = data.get('html')
+    notification_type = data.get('type', 'general')
+    
+    if not to_email or not subject or not message:
+        return jsonify({"error": "to, subject, and message are required"}), 400
+    
+    result, error, status = NotificationService.send_email(
+        to_email, subject, message, notification_type, html_content
+    )
+    
+    if error:
+        return jsonify({"error": error}), status
+    
+    return jsonify(result), status
+
+@app.route('/notifications/email/test', methods=['POST'])
+def send_email_test():
+    """Send email notification (NO AUTH - FOR TESTING ONLY)"""
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({"error": "Request body required"}), 400
+    
+    to_email = data.get('to')
+    subject = data.get('subject')
+    message = data.get('message')
+    html_content = data.get('html')
+    notification_type = data.get('type', 'test')
+    
+    if not to_email or not subject or not message:
+        return jsonify({"error": "to, subject, and message are required"}), 400
+    
+    result, error, status = NotificationService.send_email(
+        to_email, subject, message, notification_type, html_content
+    )
     
     if error:
         return jsonify({"error": error}), status
@@ -482,11 +632,12 @@ def notify_order_delivered(order_id):
     if not phone_number:
         return jsonify({"error": "phone_number is required"}), 400
     
-    message = f"Hi {customer_name}, your order {order_number} has been delivered successfully. Thank you for choosing Levels Living!"
-    
     if channel == 'whatsapp':
-        result, error, status = NotificationService.send_whatsapp(phone_number, message, 'delivery_confirmation')
+        # WhatsApp template expects just the time
+        time = "just now"
+        result, error, status = NotificationService.send_whatsapp(phone_number, time, 'delivery_confirmation')
     else:
+        message = f"Hi {customer_name}, your order {order_number} has been delivered successfully. Thank you for choosing Levels Living!"
         result, error, status = NotificationService.send_sms(phone_number, message, 'delivery_confirmation')
     
     if error:
@@ -512,11 +663,11 @@ def notify_out_for_delivery(order_id):
     if not phone_number:
         return jsonify({"error": "phone_number is required"}), 400
     
-    message = f"Hi {customer_name}, your order {order_number} is out for delivery. Expected arrival: {eta}. Levels Living"
-    
     if channel == 'whatsapp':
-        result, error, status = NotificationService.send_whatsapp(phone_number, message, 'out_for_delivery')
+        # WhatsApp template expects just the time/eta
+        result, error, status = NotificationService.send_whatsapp(phone_number, eta, 'out_for_delivery')
     else:
+        message = f"Hi {customer_name}, your order {order_number} is out for delivery. Expected arrival: {eta}. Levels Living"
         result, error, status = NotificationService.send_sms(phone_number, message, 'out_for_delivery')
     
     if error:
