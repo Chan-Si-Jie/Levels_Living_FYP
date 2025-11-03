@@ -20,7 +20,8 @@ class TestHealthCheck:
         mock_db.fetchone.return_value = {"count": 1}
         
         with patch('app.twilio_client') as mock_twilio, \
-             patch('app.redis_client') as mock_redis:
+             patch('app.redis_client') as mock_redis, \
+             patch('app.sendgrid_client') as mock_sendgrid:
             mock_twilio.api.accounts.return_value = MagicMock()
             mock_redis.ping.return_value = True
             
@@ -32,7 +33,8 @@ class TestHealthCheck:
         assert data['status'] == 'ok'
         assert data['database'] == 'connected'
         assert data['redis'] == 'connected'
-        assert data['twilio'] == 'configured'  # Twilio returns "configured" not "connected"
+        assert data['twilio'] == 'configured'
+        assert data['sendgrid'] == 'configured'
     
     def test_health_check_db_failure(self, client):
         """Test health check with database failure"""
@@ -234,7 +236,7 @@ class TestWhatsAppNotification:
             
             response = client.post('/notifications/whatsapp', json={
                 'to': '+1234567890',
-                'message': 'Test WhatsApp message',
+                'time': '30 minutes',
                 'type': 'test'
             })
         
@@ -245,13 +247,13 @@ class TestWhatsAppNotification:
     def test_send_whatsapp_missing_to(self, client, auth_token):
         """Test WhatsApp endpoint with missing 'to' field"""
         response = client.post('/notifications/whatsapp', json={
-            'message': 'Test message'
+            'time': '30 minutes'
         })
         
         assert response.status_code == 400
     
-    def test_send_whatsapp_missing_message(self, client, auth_token):
-        """Test WhatsApp endpoint with missing 'message' field"""
+    def test_send_whatsapp_missing_time(self, client, auth_token):
+        """Test WhatsApp endpoint with missing 'time' field"""
         response = client.post('/notifications/whatsapp', json={
             'to': '+1234567890'
         })
@@ -264,7 +266,7 @@ class TestWhatsAppNotification:
              patch.dict('app.app.config', {'TWILIO_WHATSAPP_NUMBER': ''}):
             response = client.post('/notifications/whatsapp', json={
                 'to': '+1234567890',
-                'message': 'Test'
+                'time': '30 minutes'
             })
         
         assert response.status_code == 500  # Returns 500 when config is empty but client exists
@@ -281,7 +283,7 @@ class TestWhatsAppNotification:
             
             response = client.post('/notifications/whatsapp', json={
                 'to': '+1234567890',
-                'message': 'Test',
+                'time': '30 minutes',
                 'type': 'test'
             })
         
@@ -292,7 +294,7 @@ class TestWhatsAppNotification:
         with patch('app.twilio_client', None):
             response = client.post('/notifications/whatsapp', json={
                 'to': '+1234567890',
-                'message': 'Test'
+                'time': '30 minutes'
             })
         
         assert response.status_code == 503
@@ -301,7 +303,7 @@ class TestWhatsAppNotification:
         """Test WhatsApp without authentication should fail"""
         response = client.post('/notifications/whatsapp', json={
             'to': '+1234567890',
-            'message': 'Test'
+            'time': '30 minutes'
         })
         
         assert response.status_code == 401
@@ -321,7 +323,7 @@ class TestWhatsAppTestEndpoint:
             
             response = client.post('/notifications/whatsapp/test', json={
                 'to': '+1234567890',
-                'message': 'Test',
+                'time': '30 minutes',
                 'type': 'test'
             })
         
@@ -342,6 +344,179 @@ class TestWhatsAppTestEndpoint:
         with patch('app.twilio_client', None):
             response = client.post('/notifications/whatsapp/test', json={
                 'to': '+1234567890',
+                'time': '30 minutes'
+            })
+        
+        assert response.status_code == 503
+
+
+class TestEmailNotification:
+    """Test email notification endpoints"""
+    
+    def test_send_email_success(self, client, auth_token, mock_db):
+        """Test successful email sending"""
+        with patch('app.sendgrid_client') as mock_sendgrid, \
+             patch.dict('app.app.config', {'SENDGRID_FROM_EMAIL': 'noreply@levelsiving.com'}):
+            mock_response = MagicMock()
+            mock_response.status_code = 202
+            mock_response.headers = {'X-Message-Id': 'MSG123'}
+            mock_sendgrid.send.return_value = mock_response
+            
+            response = client.post('/notifications/email', json={
+                'to': 'customer@example.com',
+                'subject': 'Order Confirmation',
+                'message': 'Your order has been confirmed.'
+            })
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['status_code'] == 202
+        assert data['to'] == 'customer@example.com'
+        assert data['subject'] == 'Order Confirmation'
+    
+    def test_send_email_with_html(self, client, auth_token, mock_db):
+        """Test email sending with HTML content"""
+        with patch('app.sendgrid_client') as mock_sendgrid, \
+             patch.dict('app.app.config', {'SENDGRID_FROM_EMAIL': 'noreply@levelsiving.com'}):
+            mock_response = MagicMock()
+            mock_response.status_code = 202
+            mock_response.headers = {'X-Message-Id': 'MSG456'}
+            mock_sendgrid.send.return_value = mock_response
+            
+            response = client.post('/notifications/email', json={
+                'to': 'customer@example.com',
+                'subject': 'Welcome',
+                'message': 'Welcome to Levels Living',
+                'html': '<h1>Welcome</h1><p>Welcome to Levels Living</p>'
+            })
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['status_code'] == 202
+    
+    def test_send_email_missing_to(self, client, auth_token):
+        """Test email with missing recipient"""
+        response = client.post('/notifications/email', json={
+            'subject': 'Test',
+            'message': 'Test message'
+        })
+        
+        assert response.status_code == 400
+        data = response.get_json()
+        assert 'to, subject, and message are required' in data['error']
+    
+    def test_send_email_missing_subject(self, client, auth_token):
+        """Test email with missing subject"""
+        response = client.post('/notifications/email', json={
+            'to': 'customer@example.com',
+            'message': 'Test message'
+        })
+        
+        assert response.status_code == 400
+        data = response.get_json()
+        assert 'to, subject, and message are required' in data['error']
+    
+    def test_send_email_missing_message(self, client, auth_token):
+        """Test email with missing message"""
+        response = client.post('/notifications/email', json={
+            'to': 'customer@example.com',
+            'subject': 'Test'
+        })
+        
+        assert response.status_code == 400
+        data = response.get_json()
+        assert 'to, subject, and message are required' in data['error']
+    
+    def test_send_email_no_sendgrid_client(self, client, auth_token):
+        """Test email when SendGrid client not initialized"""
+        with patch('app.sendgrid_client', None):
+            response = client.post('/notifications/email', json={
+                'to': 'customer@example.com',
+                'subject': 'Test',
+                'message': 'Test message'
+            })
+        
+        assert response.status_code == 503
+        data = response.get_json()
+        assert 'SendGrid service not available' in data['error']
+    
+    def test_send_email_no_from_email_config(self, client, auth_token):
+        """Test email when from email not configured"""
+        with patch('app.sendgrid_client') as mock_sendgrid, \
+             patch.dict('app.app.config', {'SENDGRID_FROM_EMAIL': None}):
+            response = client.post('/notifications/email', json={
+                'to': 'customer@example.com',
+                'subject': 'Test',
+                'message': 'Test message'
+            })
+        
+        assert response.status_code == 500
+        data = response.get_json()
+        assert 'SendGrid from email not configured' in data['error']
+    
+    def test_send_email_sendgrid_error(self, client, auth_token, mock_db):
+        """Test email sending when SendGrid returns error"""
+        with patch('app.sendgrid_client') as mock_sendgrid, \
+             patch.dict('app.app.config', {'SENDGRID_FROM_EMAIL': 'noreply@levelsiving.com'}):
+            mock_sendgrid.send.side_effect = Exception('SendGrid API error')
+            
+            response = client.post('/notifications/email', json={
+                'to': 'customer@example.com',
+                'subject': 'Test',
+                'message': 'Test message'
+            })
+        
+        assert response.status_code == 500
+        data = response.get_json()
+        assert 'Failed to send email' in data['error']
+    
+    def test_send_email_unauthorized(self, client):
+        """Test email without authentication"""
+        response = client.post('/notifications/email', json={
+            'to': 'customer@example.com',
+            'subject': 'Test',
+            'message': 'Test message'
+        })
+        
+        assert response.status_code == 401
+
+
+class TestEmailTestEndpoint:
+    """Test email test endpoint (no auth)"""
+    
+    def test_send_email_test_success(self, client, mock_db):
+        """Test email test endpoint"""
+        with patch('app.sendgrid_client') as mock_sendgrid, \
+             patch.dict('app.app.config', {'SENDGRID_FROM_EMAIL': 'noreply@levelsiving.com'}):
+            mock_response = MagicMock()
+            mock_response.status_code = 202
+            mock_response.headers = {'X-Message-Id': 'TEST123'}
+            mock_sendgrid.send.return_value = mock_response
+            
+            response = client.post('/notifications/email/test', json={
+                'to': 'test@example.com',
+                'subject': 'Test Email',
+                'message': 'This is a test'
+            })
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['status_code'] == 202
+    
+    def test_send_email_test_missing_fields(self, client):
+        """Test email test endpoint with missing fields"""
+        response = client.post('/notifications/email/test', json={
+            'to': 'test@example.com'
+        })
+        
+        assert response.status_code == 400
+    
+    def test_send_email_test_no_sendgrid(self, client):
+        """Test email test endpoint when SendGrid unavailable"""
+        with patch('app.sendgrid_client', None):
+            response = client.post('/notifications/email/test', json={
+                'to': 'test@example.com',
+                'subject': 'Test',
                 'message': 'Test'
             })
         
@@ -775,7 +950,7 @@ class TestEdgeCases:
             
             response = client.post('/notifications/whatsapp', json={
                 'to': '+1234567890',
-                'message': 'Test',
+                'time': '30 minutes',
                 'type': 'test'
             })
         
@@ -1036,6 +1211,87 @@ class TestInitializationErrors:
             }, clear=False):
                 import app as test_app
                 assert test_app.twilio_client is None
+    
+    def test_sendgrid_init_success(self):
+        """Test successful SendGrid initialization during module import"""
+        import sys
+        
+        # Save original module
+        original_app = sys.modules.get('app')
+        
+        try:
+            # Remove app from modules to force reimport
+            if 'app' in sys.modules:
+                del sys.modules['app']
+            
+            # Mock successful SendGrid initialization
+            mock_sendgrid_client = MagicMock()
+            mock_logger = MagicMock()
+            
+            with patch.dict(sys.modules, {'pymysql': MagicMock(), 'redis': MagicMock()}):
+                with patch('sendgrid.SendGridAPIClient', return_value=mock_sendgrid_client), \
+                     patch('logging.getLogger', return_value=mock_logger), \
+                     patch.dict('os.environ', {
+                         'DB_HOST': 'test', 'DB_USER': 'test', 'DB_PASSWORD': 'test',
+                         'DB_NAME': 'test', 'SENDGRID_API_KEY': 'test_api_key'
+                     }):
+                    import app as test_app
+                    
+                    # Verify SendGrid client was initialized (line 109-113)
+                    assert test_app.sendgrid_client is not None
+        finally:
+            # Restore original module
+            if original_app:
+                sys.modules['app'] = original_app
+    
+    def test_sendgrid_init_error(self):
+        """Test SendGrid initialization error handling"""
+        import sys
+        
+        # Save original module
+        original_app = sys.modules.get('app')
+        
+        try:
+            # Remove app from modules to force reimport
+            if 'app' in sys.modules:
+                del sys.modules['app']
+            
+            with patch.dict(sys.modules, {'pymysql': MagicMock(), 'redis': MagicMock()}):
+                with patch('sendgrid.SendGridAPIClient', side_effect=Exception("SendGrid init failed")), \
+                     patch.dict('os.environ', {
+                         'DB_HOST': 'test', 'DB_USER': 'test', 'DB_PASSWORD': 'test',
+                         'DB_NAME': 'test', 'SENDGRID_API_KEY': 'test_api_key'
+                     }):
+                    import app as test_app
+                    
+                    # Verify sendgrid_client is None after failure
+                    assert test_app.sendgrid_client is None
+        finally:
+            # Restore original module
+            if original_app:
+                sys.modules['app'] = original_app
+    
+    def test_sendgrid_init_without_api_key(self):
+        """Test SendGrid initialization when API key is not configured"""
+        import sys
+        
+        # Save original module
+        original_app = sys.modules.get('app')
+        
+        try:
+            # Remove app from modules to force reimport
+            if 'app' in sys.modules:
+                del sys.modules['app']
+            
+            with patch.dict(os.environ, {'SENDGRID_API_KEY': ''}, clear=False):
+                import app as test_app
+                
+                # The sendgrid_client should be None when API key is empty
+                assert test_app.sendgrid_client is None
+        finally:
+            # Restore original module
+            if original_app:
+                sys.modules['app'] = original_app
 
 
 class TestInternalServerError:
@@ -1100,7 +1356,7 @@ class TestWhatsAppNumberFormatting:
             
             response = client.post('/notifications/whatsapp', json={
                 'to': 'whatsapp:+1234567890',  # Number already has whatsapp: prefix
-                'message': 'Test message with whatsapp prefix',
+                'time': '30 minutes',
                 'type': 'test'
             })
         
@@ -1162,6 +1418,22 @@ class TestEmptyRequestBody:
         assert response.status_code == 400
         data = response.get_json()
         assert data['error'] == 'Request body required'
+    
+    def test_send_email_empty_dict(self, client, auth_token):
+        """Test email endpoint with empty dict"""
+        response = client.post('/notifications/email', json={})
+        
+        assert response.status_code == 400
+        data = response.get_json()
+        assert data['error'] == 'Request body required'
+    
+    def test_send_email_test_empty_dict(self, client):
+        """Test email test endpoint with empty dict"""
+        response = client.post('/notifications/email/test', json={})
+        
+        assert response.status_code == 400
+        data = response.get_json()
+        assert data['error'] == 'Request body required'
 
 
 class TestMissingMessageField:
@@ -1179,7 +1451,7 @@ class TestMissingMessageField:
         assert 'required' in data['error'].lower()
     
     def test_send_whatsapp_test_missing_message(self, client):
-        """Test WhatsApp test endpoint with missing 'message' field"""
+        """Test WhatsApp test endpoint with missing 'time' field"""
         response = client.post('/notifications/whatsapp/test', json={
             'to': '+1234567890'
         })

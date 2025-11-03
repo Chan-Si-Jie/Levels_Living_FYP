@@ -827,7 +827,7 @@
             <!-- NotificationMS Panel -->
             <div class="service-panel">
                 <div class="panel-header" onclick="togglePanel('notificationPanel')">
-                    📱 Notification Service (Twilio)
+                    📱 Notification Service (SMS • WhatsApp • Email)
                     <span class="toggle-icon">▼</span>
                 </div>
                 <div class="panel-content" id="notificationPanel">
@@ -867,8 +867,11 @@
                             <input type="tel" id="whatsappPhoneNumber" placeholder="+6512345678" value="+1234567890">
                         </div>
                         <div class="form-group">
-                            <label>Message:</label>
-                            <textarea id="whatsappMessage" rows="3" placeholder="Enter your WhatsApp message here...">Hello from Levels Living! This is a test WhatsApp notification.</textarea>
+                            <label>Delivery Time:</label>
+                            <textarea id="whatsappTime" rows="2" placeholder="30 minutes">30 minutes</textarea>
+                            <small style="color: #666; display: block; margin-top: 5px;">
+                                Template: "Your delivery will be arriving in {{1}}. Thank you for ordering with Levels Living :)"
+                            </small>
                         </div>
                         <div class="form-group">
                             <label>Notification Type:</label>
@@ -977,6 +980,7 @@
                                     <option value="">All Channels</option>
                                     <option value="sms">SMS</option>
                                     <option value="whatsapp">WhatsApp</option>
+                                    <option value="email">Email</option>
                                 </select>
                             </div>
                             <div class="form-group">
@@ -1001,6 +1005,43 @@
                             <input type="text" id="notificationId" placeholder="notification-uuid">
                         </div>
                         <button class="btn" onclick="getNotificationById()">🔍 Get Notification</button>
+                    </div>
+
+                    <!-- Send Email (SendGrid) -->
+                    <div class="endpoint-section">
+                        <h3>📧 Send Email Notification (SendGrid)</h3>
+                        <div class="form-group">
+                            <label>To Email:</label>
+                            <input type="email" id="emailTo" placeholder="recipient@example.com" value="">
+                        </div>
+                        <div class="form-group">
+                            <label>Subject:</label>
+                            <input type="text" id="emailSubject" placeholder="Your Order Confirmation" value="Test Email from Levels Living">
+                        </div>
+                        <div class="form-group">
+                            <label>Message (Plain Text):</label>
+                            <textarea id="emailMessage" rows="3" placeholder="Enter your email message here...">Hello! This is a test email from Levels Living notification service.</textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>HTML Content (Optional):</label>
+                            <textarea id="emailHTML" rows="4" placeholder="Optional: Enter HTML content here...">&lt;h1&gt;Welcome to Levels Living!&lt;/h1&gt;&lt;p&gt;This is a &lt;strong&gt;test email&lt;/strong&gt; with HTML formatting.&lt;/p&gt;</textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Notification Type:</label>
+                            <select id="emailType">
+                                <option value="test">Test</option>
+                                <option value="general">General</option>
+                                <option value="order_confirmation">Order Confirmation</option>
+                                <option value="order_update">Order Update</option>
+                                <option value="delivery_confirmation">Delivery Confirmation</option>
+                                <option value="welcome">Welcome</option>
+                                <option value="password_reset">Password Reset</option>
+                            </select>
+                        </div>
+                        <button class="btn success" onclick="sendEmail()">📧 Send Email</button>
+                        <div class="info-box" style="margin-top: 10px; padding: 10px; background: #e8f4fd; border-radius: 8px; font-size: 0.9em;">
+                            <strong>Note:</strong> Requires SendGrid API key configuration. Email will be sent from your verified SendGrid sender address.
+                        </div>
                     </div>
 
                 </div>
@@ -1730,17 +1771,17 @@ ${'═'.repeat(80)}
             }
 
             const phoneNumber = document.getElementById('whatsappPhoneNumber').value;
-            const message = document.getElementById('whatsappMessage').value;
+            const time = document.getElementById('whatsappTime').value;
             const type = document.getElementById('whatsappType').value;
 
-            if (!phoneNumber || !message) {
-                alert('Please fill in phone number and message');
+            if (!phoneNumber || !time) {
+                alert('Please fill in phone number and delivery time');
                 return;
             }
 
             const data = {
                 to: phoneNumber,
-                message: message,
+                time: time,
                 type: type
             };
 
@@ -1834,6 +1875,45 @@ ${'═'.repeat(80)}
             }
 
             await makeRequest('GET', `${CONFIG.NOTIFICATION_API}/notifications/${notificationId}`, null, true);
+        }
+
+        async function sendEmail() {
+            if (!currentToken) {
+                alert('⚠️ Please login first!');
+                return;
+            }
+
+            const toEmail = document.getElementById('emailTo').value;
+            const subject = document.getElementById('emailSubject').value;
+            const message = document.getElementById('emailMessage').value;
+            const htmlContent = document.getElementById('emailHTML').value;
+            const type = document.getElementById('emailType').value;
+
+            if (!toEmail || !subject || !message) {
+                alert('Please fill in required fields: To, Subject, and Message');
+                return;
+            }
+
+            // Validate email format
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(toEmail)) {
+                alert('Please enter a valid email address');
+                return;
+            }
+
+            const data = {
+                to: toEmail,
+                subject: subject,
+                message: message,
+                type: type
+            };
+
+            // Add HTML content if provided
+            if (htmlContent && htmlContent.trim() !== '') {
+                data.html = htmlContent;
+            }
+
+            await makeRequest('POST', `${CONFIG.NOTIFICATION_API}/notifications/email`, data, true);
         }
 
         // Utility Functions
