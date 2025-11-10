@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
 # Set environment variables BEFORE importing app
 os.environ['GOOGLE_API_KEY'] = 'test-api-key'
 os.environ['WAREHOUSE_LAT'] = '1.375645'
-os.environ['WAREHOUSE_LNG'] = '103.929573'
+os.environ['WAREHOUSE_LONG'] = '103.929573'
 
 from app import app
 

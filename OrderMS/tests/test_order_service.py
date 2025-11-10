@@ -2005,7 +2005,7 @@ def test_update_order_details_order_not_found(client, mock_db, auth_token):
     assert 'Order not found' in data['error']
 
 
-def test_orchestrator_create_order_exception(client, mock_db, auth_token, mocker, mock_service_clients, requests_mock):
+def test_orchestrator_create_order_exception(client, mock_db, auth_token, mocker, mock_service_clients):
     """Test OrderOrchestrator.create_order exception handling"""
     # Mock inventory_service and customer_service to pass validation
     mocker.patch('app.customer_service.get', return_value={
